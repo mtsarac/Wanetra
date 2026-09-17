@@ -1,0 +1,41 @@
+# Build output
+bin/
+obj/
+
+# Local workspace metadata
+.codegraph/
+.omo/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Frontend
+node_modules/
+dist/
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Runtime data
+/data/
+*.db
+*.db-shm
+*.db-wal
+logs/
+
+# OS
+a.DS_Store
+Thumbs.db
+.codegraph
+.omo

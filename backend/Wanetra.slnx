@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Wanetra.Api.Tests/Wanetra.Api.Tests.csproj" />
+  <Project Path="Wanetra.Api/Wanetra.Api.csproj" />
+  <Project Path="Wanetra.Application/Wanetra.Application.csproj" />
+  <Project Path="Wanetra.Domain/Wanetra.Domain.csproj" />
+  <Project Path="Wanetra.Infrastructure/Wanetra.Infrastructure.csproj" />
+</Solution>

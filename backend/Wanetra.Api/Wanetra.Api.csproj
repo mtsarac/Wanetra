@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wanetra.Application\Wanetra.Application.csproj" />
+    <ProjectReference Include="..\Wanetra.Infrastructure\Wanetra.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
