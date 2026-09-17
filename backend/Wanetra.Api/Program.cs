@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Wanetra.Application;
 using Wanetra.Infrastructure;
 using Wanetra.Infrastructure.Persistence;
 
@@ -8,7 +9,8 @@ var dataPath = Path.GetFullPath(
     builder.Configuration["WANETRA_DATA_PATH"] ?? "/data",
     builder.Environment.ContentRootPath);
 
-builder.Services.AddInfrastructure(dataPath);
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration, dataPath);
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<WanetraDbContext>("database", tags: ["ready"]);
 
