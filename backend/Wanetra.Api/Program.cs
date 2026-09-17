@@ -1,19 +1,27 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Wanetra.Infrastructure;
+using Wanetra.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHealthChecks();
+var dataPath = Path.GetFullPath(
+    builder.Configuration["WANETRA_DATA_PATH"] ?? "/data",
+    builder.Environment.ContentRootPath);
+
+builder.Services.AddInfrastructure(dataPath);
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<WanetraDbContext>("database", tags: ["ready"]);
 
 var app = builder.Build();
+
+await app.Services.InitializeDatabaseAsync();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// An empty health report is still Healthy, so these return 200 until
-// database and scheduler checks are registered in later phases.
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
-app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => true });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 app.MapFallbackToFile("index.html");
 
 app.Run();

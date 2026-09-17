@@ -13,6 +13,7 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 ## Available
 
 - ASP.NET Core health endpoints: `/health`, `/health/live`, `/health/ready`
+- SQLite storage with EF Core migrations applied at startup
 - React application shell
 - Container build foundation
 
@@ -28,7 +29,7 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 
 - Backend: .NET 10, ASP.NET Core Minimal API
 - Frontend: React, TypeScript, Vite, Tailwind CSS, shadcn/ui foundation
-- Storage: SQLite (planned)
+- Storage: SQLite, Entity Framework Core
 
 ## Development
 
@@ -54,6 +55,9 @@ Build and run the bootstrap image:
 docker build -t wanetra:dev .
 docker run --rm -p 8080:8080 -v (pwd)/data:/data wanetra:dev
 ```
+
+The database is created at `$WANETRA_DATA_PATH/wanetra.db` (`/data/wanetra.db` in the
+container). Mount that directory to keep measurement history between restarts.
 
 ## Project documentation
 
