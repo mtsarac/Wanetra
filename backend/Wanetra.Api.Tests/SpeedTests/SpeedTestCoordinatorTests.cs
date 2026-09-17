@@ -81,6 +81,8 @@ public class SpeedTestCoordinatorTests
 
         Assert.Equal(SpeedTestState.Failed, coordinator.Status.State);
         Assert.Equal(stored.ErrorMessage, coordinator.Status.ErrorMessage);
+        Assert.Equal(SpeedTestTrigger.Manual, coordinator.Status.Trigger);
+        Assert.NotNull(coordinator.Status.StartedAt);
     }
 
     [Fact]

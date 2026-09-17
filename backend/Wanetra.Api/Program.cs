@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Wanetra.Api.Endpoints;
 using Wanetra.Application;
 using Wanetra.Infrastructure;
 using Wanetra.Infrastructure.Persistence;
@@ -24,6 +25,7 @@ app.UseStaticFiles();
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
+app.MapSpeedTestEndpoints();
 app.MapFallbackToFile("index.html");
 
 app.Run();

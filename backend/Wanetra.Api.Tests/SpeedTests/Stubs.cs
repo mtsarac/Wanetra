@@ -19,6 +19,17 @@ internal sealed class RecordingResultRepository : ISpeedTestResultRepository
         Results.Add(result);
         return Task.CompletedTask;
     }
+
+    public Task<SpeedTestResult?> FindAsync(long id, CancellationToken cancellationToken) =>
+        Task.FromResult(Results.FirstOrDefault(result => result.Id == id));
+
+    public Task<SpeedTestResult?> FindLatestAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Results.LastOrDefault());
+
+    public Task<SpeedTestResultPage> QueryAsync(
+        SpeedTestResultQuery query,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new SpeedTestResultPage(Results, query.Page, query.PageSize, Results.Count));
 }
 
 internal sealed class StubProcessRunner(ProcessResult result) : IProcessRunner

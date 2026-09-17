@@ -14,6 +14,7 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 
 - ASP.NET Core health endpoints: `/health`, `/health/live`, `/health/ready`
 - SQLite storage with EF Core migrations applied at startup
+- Speed test API: manual runs, execution status, latest result, filtered history
 - React application shell
 - Container build foundation
 
@@ -24,6 +25,25 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 - Baseline-based degradation detection and alerts
 - ntfy and generic webhook notifications
 - Prometheus metrics
+
+## API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/speedtests/run` | Start a manual test. Answers `202` right away, or `409` when a test is already running. |
+| `GET` | `/api/speedtests/status` | Execution state: `idle`, `running`, or `failed`. |
+| `GET` | `/api/speedtests/latest` | Most recent result. |
+| `GET` | `/api/speedtests/{id}` | A single result. |
+| `GET` | `/api/speedtests` | Paged history. |
+
+A run outlives the HTTP request that starts it, so poll `/api/speedtests/status`
+instead of waiting on the response.
+
+History query parameters: `from` and `to` (ISO-8601, UTC), `success`, `engine`,
+`sort` (`asc` or `desc`, default `desc`), `page` (default 1), and `pageSize`
+(default 50, maximum 200).
+
+Errors carry `{"code": "...", "message": "..."}`.
 
 ## Tech stack
 
