@@ -1,15 +1,16 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Wanetra.Api.Tests;
 
-public class HealthEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests(WanetraApiFactory factory) : IClassFixture<WanetraApiFactory>
 {
-    [Fact]
-    public async Task Health_returns_Healthy()
+    [Theory]
+    [InlineData("/health")]
+    [InlineData("/health/live")]
+    [InlineData("/health/ready")]
+    public async Task Health_endpoints_return_Healthy(string path)
     {
-        var response = await factory.CreateClient().GetAsync("/health");
+        var response = await factory.CreateClient().GetAsync(path);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
