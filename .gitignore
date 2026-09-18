@@ -5,6 +5,7 @@ obj/
 # Local workspace metadata
 .codegraph/
 .omo/
+docs/superpowers/
 
 # IDE
 .vs/
