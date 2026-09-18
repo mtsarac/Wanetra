@@ -15,12 +15,13 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 - ASP.NET Core health endpoints: `/health`, `/health/live`, `/health/ready`
 - SQLite storage with EF Core migrations applied at startup
 - Speed test API: manual runs, execution status, latest result, filtered history
+- Scheduled speed tests: cron expression plus timezone, run by a background worker
 - React application shell
 - Container build foundation
 
 ## Planned capabilities
 
-- Manual and scheduled LibreSpeed-compatible tests
+- LibreSpeed-compatible test engines
 - Historical metrics and dashboard charts
 - Baseline-based degradation detection and alerts
 - ntfy and generic webhook notifications
@@ -35,9 +36,17 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 | `GET` | `/api/speedtests/latest` | Most recent result. |
 | `GET` | `/api/speedtests/{id}` | A single result. |
 | `GET` | `/api/speedtests` | Paged history. |
+| `GET` | `/api/schedule` | Current schedule plus the next 5 runs. |
+| `PUT` | `/api/schedule` | Save `{enabled, cronExpression, timezone}`. Bad cron or timezone answers `400`. |
+| `GET` | `/api/schedule/next-runs?count=` | Upcoming runs in UTC (`count` 1 to 100, default 5). Empty when the schedule is off. |
 
 A run outlives the HTTP request that starts it, so poll `/api/speedtests/status`
 instead of waiting on the response.
+
+The schedule ships disabled with `*/30 * * * *` in `Europe/Istanbul`.
+Saving wakes the worker right away, so there's no need to restart.
+All `nextRuns` timestamps are UTC. A run whose time has already passed is
+skipped, it's never caught up.
 
 History query parameters: `from` and `to` (ISO-8601, UTC), `success`, `engine`,
 `sort` (`asc` or `desc`, default `desc`), `page` (default 1), and `pageSize`

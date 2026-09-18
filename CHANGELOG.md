@@ -15,6 +15,12 @@ All notable changes to Wanetra will be documented here.
 - Speed test API: start a manual run, poll its status, and read the latest
   result, a single result, or paged history filtered by date range, outcome,
   and engine.
+- Scheduled speed tests: `GET`/`PUT /api/schedule` plus
+  `GET /api/schedule/next-runs`, backed by a background worker that wakes
+  immediately when settings are saved. Defaults to disabled with
+  `*/30 * * * *` in `Europe/Istanbul`; upcoming runs are reported in UTC,
+  missed runs are skipped instead of caught up, and a bad cron expression
+  or timezone answers `400`.
 
 ### Fixed
 
