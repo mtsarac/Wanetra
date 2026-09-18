@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Wanetra.Application.Scheduling;
 using Wanetra.Application.SpeedTests;
 
 namespace Wanetra.Application;
@@ -11,6 +12,10 @@ public static class DependencyInjection
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<SpeedTestExecutor>();
         services.AddSingleton<SpeedTestCoordinator>();
+        services.AddSingleton<ScheduleCalculator>();
+        services.AddSingleton<ScheduleChangeSignal>();
+        services.AddScoped<ScheduleService>();
+        services.AddHostedService<ScheduleWorker>();
 
         return services;
     }

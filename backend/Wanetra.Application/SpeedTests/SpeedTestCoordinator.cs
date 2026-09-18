@@ -29,12 +29,13 @@ public sealed class SpeedTestCoordinator(
             return null;
         }
 
-        status = new SpeedTestStatus(SpeedTestState.Running, trigger, timeProvider.GetUtcNow());
+        var running = new SpeedTestStatus(SpeedTestState.Running, trigger, timeProvider.GetUtcNow());
+        status = running;
 
-        return RunAsync(cancellationToken);
+        return RunAsync(running, cancellationToken);
     }
 
-    private async Task RunAsync(CancellationToken cancellationToken)
+    private async Task RunAsync(SpeedTestStatus running, CancellationToken cancellationToken)
     {
         try
         {
@@ -43,9 +44,7 @@ public sealed class SpeedTestCoordinator(
 
             var result = await executor.RunAsync(cancellationToken);
 
-            status = result.Success
-                ? SpeedTestStatus.Idle
-                : new SpeedTestStatus(SpeedTestState.Failed, ErrorMessage: result.ErrorMessage);
+            status = result.Success ? SpeedTestStatus.Idle : Failed(running, result.ErrorMessage);
         }
         catch (OperationCanceledException)
         {
@@ -55,13 +54,18 @@ public sealed class SpeedTestCoordinator(
         {
             // Storing the result can fail on its own, so the run must not bring the process down.
             logger.LogError(ex, "Speed test run failed");
-            status = new SpeedTestStatus(SpeedTestState.Failed, ErrorMessage: ex.Message);
+            status = Failed(running, ex.Message);
         }
         finally
         {
             gate.Release();
         }
     }
+
+    // A failed status keeps the trigger and start time of the run that failed, so
+    // callers can tell which run they are looking at.
+    private static SpeedTestStatus Failed(SpeedTestStatus running, string? errorMessage) =>
+        running with { State = SpeedTestState.Failed, ErrorMessage = errorMessage };
 
     public void Dispose() => gate.Dispose();
 }
