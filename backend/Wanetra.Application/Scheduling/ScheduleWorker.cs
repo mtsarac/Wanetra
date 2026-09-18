@@ -48,7 +48,7 @@ public sealed class ScheduleWorker(
 
             try
             {
-                coordinator.TryStart(SpeedTestTrigger.Scheduled, stoppingToken);
+                _ = coordinator.TryStart(SpeedTestTrigger.Scheduled, stoppingToken);
             }
             catch (Exception ex)
             {

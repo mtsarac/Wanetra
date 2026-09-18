@@ -31,7 +31,9 @@ public class ScheduleWorkerTests
             harness.Coordinator.Status is { State: SpeedTestState.Running, Trigger: SpeedTestTrigger.Scheduled });
 
         gate.SetResult();
-        await harness.AdvanceUntilAsync(() => harness.Repository.Results.Count == 1);
+        await harness.AdvanceUntilAsync(() =>
+            harness.Repository.Results.Count == 1
+            && harness.Coordinator.Status.State == SpeedTestState.Idle);
 
         Assert.Equal(1, harness.Invocations);
         Assert.Equal(SpeedTestState.Idle, harness.Coordinator.Status.State);
