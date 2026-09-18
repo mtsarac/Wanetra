@@ -26,6 +26,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 app.MapSpeedTestEndpoints();
+app.MapScheduleEndpoints();
 app.MapFallbackToFile("index.html");
 
 app.Run();
