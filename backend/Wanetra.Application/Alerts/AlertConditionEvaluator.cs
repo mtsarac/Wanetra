@@ -1,0 +1,55 @@
+using Wanetra.Application.Baselines;
+using Wanetra.Domain;
+
+namespace Wanetra.Application.Alerts;
+
+public sealed record AlertEvaluationResult(bool Evaluated, bool Unhealthy, string Reason);
+
+public static class AlertConditionEvaluator
+{
+    public static AlertEvaluationResult Evaluate(
+        AlertRule rule,
+        SpeedTestResult result,
+        BaselineSnapshot baseline)
+    {
+        if (!result.Success)
+        {
+            return new AlertEvaluationResult(false, false, string.Empty);
+        }
+
+        var reasons = new List<string>();
+        AddViolation(result.DownloadMbps < rule.MinDownloadMbps, reasons, "download below threshold");
+        AddViolation(result.UploadMbps < rule.MinUploadMbps, reasons, "upload below threshold");
+        AddViolation(result.LatencyMs > rule.MaxLatencyMs, reasons, "latency above threshold");
+        AddViolation(result.JitterMs > rule.MaxJitterMs, reasons, "jitter above threshold");
+        AddViolation(result.PacketLossPercent > rule.MaxPacketLossPercent, reasons, "packet loss above threshold");
+        AddBaselineViolation(result.DownloadMbps, baseline.Download, rule.DownloadBaselineDropPercent, reasons, "download below baseline");
+        AddBaselineViolation(result.UploadMbps, baseline.Upload, rule.UploadBaselineDropPercent, reasons, "upload below baseline");
+
+        return new AlertEvaluationResult(true, reasons.Count > 0, string.Join(", ", reasons));
+    }
+
+    private static void AddViolation(bool violation, List<string> reasons, string reason)
+    {
+        if (violation)
+        {
+            reasons.Add(reason);
+        }
+    }
+
+    private static void AddBaselineViolation(
+        double? current,
+        MetricBaseline baseline,
+        double? dropThreshold,
+        List<string> reasons,
+        string reason)
+    {
+        if (!current.HasValue || !baseline.Available || !baseline.BaselineMbps.HasValue || baseline.BaselineMbps.Value <= 0 || !dropThreshold.HasValue)
+        {
+            return;
+        }
+
+        var drop = (baseline.BaselineMbps.Value - current.Value) / baseline.BaselineMbps.Value * 100;
+        AddViolation(drop >= dropThreshold.Value, reasons, reason);
+    }
+}
