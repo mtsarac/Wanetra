@@ -9,6 +9,7 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
     public DbSet<SpeedTestResult> SpeedTestResults => Set<SpeedTestResult>();
     public DbSet<ScheduleSettings> ScheduleSettings => Set<ScheduleSettings>();
     public DbSet<AlertRule> AlertRules => Set<AlertRule>();
+    public DbSet<AlertState> AlertStates => Set<AlertState>();
     public DbSet<DegradationEvent> DegradationEvents => Set<DegradationEvent>();
     public DbSet<NotificationConfiguration> NotificationConfigurations => Set<NotificationConfiguration>();
 
@@ -42,6 +43,11 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
         modelBuilder.Entity<AlertRule>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<AlertState>(entity =>
+        {
+            entity.HasKey(x => x.Id);
         });
 
         modelBuilder.Entity<DegradationEvent>(entity =>

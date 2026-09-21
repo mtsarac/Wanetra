@@ -18,6 +18,9 @@ public class DegradationEvent
     public double? MaxJitterMs { get; set; }
     public double? MaxPacketLossPercent { get; set; }
 
+    public int ConsecutiveUnhealthyMeasurements { get; set; }
+    public int ConsecutiveHealthyMeasurements { get; set; }
+
     public bool NotificationSent { get; set; }
     public bool RecoveryNotificationSent { get; set; }
 }
