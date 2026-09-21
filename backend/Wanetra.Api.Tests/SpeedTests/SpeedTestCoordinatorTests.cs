@@ -112,6 +112,7 @@ public class SpeedTestCoordinatorTests
         var services = new ServiceCollection();
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<ISpeedTestResultRepository>(repository);
+        services.AddSingleton<IAlertStateRepository, RecordingAlertStateRepository>();
         services.AddSingleton<ISpeedTestEngine>(new StubSpeedTestEngine(run));
         services.AddApplication();
 

@@ -42,6 +42,21 @@ internal sealed class RecordingResultRepository : ISpeedTestResultRepository
         Task.FromResult(new SpeedTestResultPage(Results, query.Page, query.PageSize, Results.Count));
 }
 
+internal sealed class RecordingAlertStateRepository : IAlertStateRepository
+{
+    private readonly AlertState state = new() { Id = 1, UpdatedAt = DateTime.UtcNow };
+
+    public Task<AlertRule?> GetEnabledRuleAsync(CancellationToken cancellationToken) => Task.FromResult<AlertRule?>(null);
+
+    public Task<AlertState> GetStateAsync(CancellationToken cancellationToken) => Task.FromResult(state);
+
+    public Task<DegradationEvent?> GetOpenEventAsync(CancellationToken cancellationToken) => Task.FromResult<DegradationEvent?>(null);
+
+    public void AddEvent(DegradationEvent degradationEvent) { }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
 internal sealed class StubProcessRunner(ProcessResult result) : IProcessRunner
 {
     public IReadOnlyList<string> Arguments { get; private set; } = [];
