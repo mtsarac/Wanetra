@@ -9,6 +9,13 @@ public interface ISpeedTestResultRepository
     /// <summary>Most recent result, successful or not, or <c>null</c> when none exists.</summary>
     Task<SpeedTestResult?> FindLatestAsync(CancellationToken cancellationToken);
 
+    Task<SpeedTestResult?> FindLatestSuccessfulAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulSinceAsync(
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken);
+
     /// <summary>Reads one page of history. Never materializes the whole table.</summary>
     Task<SpeedTestResultPage> QueryAsync(SpeedTestResultQuery query, CancellationToken cancellationToken);
 }

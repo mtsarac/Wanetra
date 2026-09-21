@@ -12,7 +12,7 @@ internal sealed class StubSpeedTestEngine(Func<CancellationToken, Task<SpeedTest
 
 internal sealed class RecordingResultRepository : ISpeedTestResultRepository
 {
-    public List<SpeedTestResult> Results { get; } = [];
+    public List<SpeedTestResult> Results { get; init; } = [];
 
     public Task AddAsync(SpeedTestResult result, CancellationToken cancellationToken)
     {
@@ -25,6 +25,16 @@ internal sealed class RecordingResultRepository : ISpeedTestResultRepository
 
     public Task<SpeedTestResult?> FindLatestAsync(CancellationToken cancellationToken) =>
         Task.FromResult(Results.LastOrDefault());
+
+    public Task<SpeedTestResult?> FindLatestSuccessfulAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Results.LastOrDefault(result => result.Success));
+
+    public Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulSinceAsync(
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<SpeedTestResult>>(
+            Results.Where(result => result.Success && result.Timestamp >= from && result.Timestamp <= to).ToList());
 
     public Task<SpeedTestResultPage> QueryAsync(
         SpeedTestResultQuery query,

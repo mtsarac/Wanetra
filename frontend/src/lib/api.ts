@@ -40,6 +40,21 @@ export type Schedule = {
   nextRuns: string[]
 }
 
+export type MetricBaseline = {
+  available: boolean
+  validSamples: number
+  baselineMbps: number | null
+  latestMbps: number | null
+  percentChange: number | null
+}
+
+export type Baseline = {
+  windowFrom: string
+  windowTo: string
+  download: MetricBaseline
+  upload: MetricBaseline
+}
+
 type ApiError = { message?: string }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -67,6 +82,7 @@ export const api = {
   getLatest,
   getStatus: () => request<SpeedTestStatus>('/api/speedtests/status'),
   getSchedule: () => request<Schedule>('/api/schedule'),
+  getBaseline: () => request<Baseline>('/api/baseline'),
   runSpeedTest: () => request<{ status: string }>('/api/speedtests/run', { method: 'POST' }),
   getHistoryPage: (from: Date, page: number) => request<SpeedTestHistoryPage>(
     `/api/speedtests?${new URLSearchParams({
