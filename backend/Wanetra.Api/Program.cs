@@ -28,6 +28,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check 
 app.MapSpeedTestEndpoints();
 app.MapScheduleEndpoints();
 app.MapBaselineEndpoints();
+app.MapAlertEndpoints();
 app.MapFallbackToFile("index.html");
 
 app.Run();

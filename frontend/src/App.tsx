@@ -63,6 +63,7 @@ function App() {
   const status = useQuery({ queryKey: ['status'], queryFn: api.getStatus, refetchInterval: (query) => query.state.data?.state === 'running' ? 2000 : false })
   const schedule = useQuery({ queryKey: ['schedule'], queryFn: api.getSchedule })
   const baseline = useQuery({ queryKey: ['baseline'], queryFn: api.getBaseline })
+  const activeAlert = useQuery({ queryKey: ['active-alert'], queryFn: api.getActiveAlert })
   const history = useQuery({ queryKey: ['history', range], queryFn: () => getHistory(new Date(Date.now() - ranges[range] * 86400000)) })
   const run = useMutation({
     mutationFn: api.runSpeedTest,
@@ -83,7 +84,7 @@ function App() {
     void client.invalidateQueries({ queryKey: ['status'] })
   }, [client, status.data?.state])
 
-  const error = latest.error ?? status.error ?? schedule.error ?? baseline.error ?? history.error
+  const error = latest.error ?? status.error ?? schedule.error ?? baseline.error ?? activeAlert.error ?? history.error
   const recent = [...(history.data ?? [])].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 6)
 
   return (
@@ -93,6 +94,7 @@ function App() {
         <div className="status-chip"><i className={status.data?.state === 'running' ? 'pulse' : ''} /> {status.data?.state ?? 'loading'}</div>
       </header>
       {error && <div className="error" role="alert">{error instanceof Error ? error.message : 'Could not load dashboard data.'}</div>}
+      {activeAlert.data && <section className="active-alert" aria-live="polite"><div><p className="kicker">ACTIVE DEGRADATION</p><strong>{activeAlert.data.reason}</strong></div><div><span>{activeAlert.data.status}</span><small>Since {formatTime(activeAlert.data.startedAt)}</small></div></section>}
       <section className="metrics">
         <Metric label="Download" value={formatNumber(latest.data?.downloadMbps, 'Mbps')} tone="blue" />
         <Metric label="Upload" value={formatNumber(latest.data?.uploadMbps, 'Mbps')} tone="green" />

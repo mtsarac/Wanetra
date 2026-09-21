@@ -25,6 +25,9 @@ h2 { font-size: 1rem; letter-spacing: -0.02em; }
 i { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #64748b; }
 i.pulse, i.on { background: #a3e635; box-shadow: 0 0 0 4px rgba(163,230,53,.12); }
 .error { border: 1px solid #7f1d1d; background: #2b1118; color: #fecaca; padding: 12px 14px; margin-bottom: 16px; }
+.active-alert { display: flex; justify-content: space-between; gap: 16px; border: 1px solid #854d0e; background: #291d0b; color: #fde68a; padding: 14px 16px; margin-bottom: 10px; }
+.active-alert strong, .active-alert small { display: block; margin-top: 5px; }
+.active-alert span, .active-alert small { color: #fcd34d; text-transform: capitalize; }
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
 .metric, .action-metric, .panel { border: 1px solid #1b2b3b; background: #0d1b2a; }
 .metric, .action-metric { padding: 16px; min-height: 112px; display: flex; flex-direction: column; justify-content: space-between; }
