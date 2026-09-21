@@ -5,7 +5,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, getHistory, type SpeedTestResult } from './lib/api'
+import { api, getHistory, type MetricBaseline, type SpeedTestResult } from './lib/api'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -52,12 +52,17 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: st
   return <div className="metric"><span>{label}</span><strong className={tone}>{value}</strong></div>
 }
 
+function BaselineMetric({ label, metric }: { label: string; metric: MetricBaseline }) {
+  return <div className="baseline-metric"><span>{label}</span>{metric.available ? <><strong>{formatNumber(metric.latestMbps, 'Mbps')}</strong><small>Baseline {formatNumber(metric.baselineMbps, 'Mbps')} · {metric.percentChange == null ? '—' : `${metric.percentChange >= 0 ? '+' : ''}${metric.percentChange.toFixed(1)}%`}</small></> : <small>Collecting baseline data · {metric.validSamples}/10 samples</small>}</div>
+}
+
 function App() {
   const client = useQueryClient()
   const [range, setRange] = useState<Range>('24h')
   const latest = useQuery({ queryKey: ['latest'], queryFn: api.getLatest, retry: false })
   const status = useQuery({ queryKey: ['status'], queryFn: api.getStatus, refetchInterval: (query) => query.state.data?.state === 'running' ? 2000 : false })
   const schedule = useQuery({ queryKey: ['schedule'], queryFn: api.getSchedule })
+  const baseline = useQuery({ queryKey: ['baseline'], queryFn: api.getBaseline })
   const history = useQuery({ queryKey: ['history', range], queryFn: () => getHistory(new Date(Date.now() - ranges[range] * 86400000)) })
   const run = useMutation({
     mutationFn: api.runSpeedTest,
@@ -74,10 +79,11 @@ function App() {
     wasRunning.current = false
     void client.invalidateQueries({ queryKey: ['latest'] })
     void client.invalidateQueries({ queryKey: ['history'] })
+    void client.invalidateQueries({ queryKey: ['baseline'] })
     void client.invalidateQueries({ queryKey: ['status'] })
   }, [client, status.data?.state])
 
-  const error = latest.error ?? status.error ?? schedule.error ?? history.error
+  const error = latest.error ?? status.error ?? schedule.error ?? baseline.error ?? history.error
   const recent = [...(history.data ?? [])].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 6)
 
   return (
@@ -93,6 +99,7 @@ function App() {
         <Metric label="Latency" value={formatNumber(latest.data?.latencyMs, 'ms')} tone="white" />
         <div className="action-metric"><span>Manual test</span><button disabled={status.data?.state === 'running' || run.isPending} onClick={() => run.mutate()}>{run.isPending || status.data?.state === 'running' ? 'Running…' : 'Run speed test'}</button></div>
       </section>
+      <section className="panel baseline"><div className="panel-head"><div><p className="kicker">BASELINE / 7 DAYS</p><h2>Current vs baseline</h2></div><span className="muted">{baseline.isLoading ? 'Loading…' : 'Successful measurements only'}</span></div><div className="baseline-grid"><BaselineMetric label="Download" metric={baseline.data?.download ?? { available: false, validSamples: 0, baselineMbps: null, latestMbps: null, percentChange: null }} /><BaselineMetric label="Upload" metric={baseline.data?.upload ?? { available: false, validSamples: 0, baselineMbps: null, latestMbps: null, percentChange: null }} /></div></section>
       <section className="workspace">
         <div className="panel chart-panel"><div className="panel-head"><div><p className="kicker">THROUGHPUT</p><h2>Speed history</h2></div><div className="range-tabs">{(Object.keys(ranges) as Range[]).map((item) => <button className={range === item ? 'selected' : ''} key={item} onClick={() => setRange(item)}>{item}</button>)}</div></div>{history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <Chart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}</div>
         <aside className="panel schedule"><p className="kicker">SCHEDULE</p><div className="schedule-state"><i className={schedule.data?.enabled ? 'on' : ''} /> {schedule.data?.enabled ? 'Enabled' : 'Disabled'}</div><dl><dt>Expression</dt><dd>{schedule.data?.cronExpression ?? '—'}</dd><dt>Timezone</dt><dd>{schedule.data?.timezone ?? '—'}</dd><dt>Next run</dt><dd>{formatTime(schedule.data?.nextRuns[0])}</dd></dl></aside>

@@ -1616,17 +1616,24 @@ user can inspect historical speed and latency
 ## Phase 7 — Baseline
 
 1. Add successful-result query.
-2. Implement rolling median.
-3. Add minimum sample requirement.
-4. Expose baseline in dashboard.
-5. Add percent change calculations.
+2. Implement request-time rolling median with a fixed 7-day UTC window calculated through `TimeProvider`.
+3. Include only results where `Success == true`.
+4. Calculate download and upload medians independently.
+5. Count valid, non-null samples separately for each metric.
+6. Make a metric baseline available only when that metric has at least 10 valid samples.
+7. Use the latest successful measurement for current download and upload values.
+8. Calculate percent change as `(latest - baseline) / baseline * 100`.
+9. Return `null` percent change when the corresponding baseline is unavailable.
+10. Expose baseline in the dashboard; show `Collecting baseline data` while unavailable.
+
+Do not add Phase 8 health states, thresholds, alert state machine, or degradation event logic. Do not add a table, migration, or background worker for baseline calculation.
 
 Acceptance criteria:
 
 ```text
-baseline unavailable before enough samples
-baseline calculated correctly afterwards
-dashboard shows current vs baseline
+baseline unavailable before enough metric-specific samples
+baseline calculated correctly afterwards from successful results in the UTC window
+dashboard shows current vs baseline and percent change
 ```
 
 ---

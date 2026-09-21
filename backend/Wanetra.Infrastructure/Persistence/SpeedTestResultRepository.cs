@@ -23,6 +23,25 @@ internal sealed class SpeedTestResultRepository(WanetraDbContext dbContext) : IS
             .ThenByDescending(result => result.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<SpeedTestResult?> FindLatestSuccessfulAsync(CancellationToken cancellationToken) =>
+        dbContext.SpeedTestResults
+            .AsNoTracking()
+            .Where(result => result.Success)
+            .OrderByDescending(result => result.Timestamp)
+            .ThenByDescending(result => result.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulSinceAsync(
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken) =>
+        await dbContext.SpeedTestResults
+            .AsNoTracking()
+            .Where(result => result.Success && result.Timestamp >= from && result.Timestamp <= to)
+            .OrderBy(result => result.Timestamp)
+            .ThenBy(result => result.Id)
+            .ToListAsync(cancellationToken);
+
     public async Task<SpeedTestResultPage> QueryAsync(
         SpeedTestResultQuery query,
         CancellationToken cancellationToken)
