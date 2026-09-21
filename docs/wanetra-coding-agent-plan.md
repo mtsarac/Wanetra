@@ -1640,20 +1640,29 @@ dashboard shows current vs baseline and percent change
 
 ## Phase 8 — Alert Engine
 
-1. Create AlertRule model.
-2. Implement static thresholds.
-3. Implement baseline thresholds.
-4. Add consecutive failure logic.
-5. Add recovery logic.
-6. Implement state machine.
-7. Persist degradation events.
+See `docs/superpowers/specs/2026-09-21-alert-engine-design.md`.
+
+1. Add persistent singleton alert transition state and repository operations.
+2. Evaluate only successful persisted results synchronously after persistence.
+3. Reuse Phase 7 `BaselineService`; do not duplicate baseline calculation.
+4. Evaluate static and baseline conditions with OR semantics; ignore unavailable baseline conditions.
+5. Implement consecutive unhealthy/recovery transitions and recovery interruption.
+6. Persist one active degradation event and prevent duplicate active events.
+7. Define rule-change behavior and reset pending counters when rule identity/version changes.
+8. Expose persisted active/recovering event read-only to dashboard.
+9. Do not add notification dispatch, background workers, queues, or API-demand evaluation.
 
 Acceptance criteria:
 
 ```text
-one bad measurement does not alert
-configured number of failures creates degradation event
+failed speed tests do not affect alert state
+one bad successful measurement does not alert
+configured number of unhealthy successful measurements creates one degradation event
 configured recovery count closes event
+recovery interruption returns event to active
+pending state survives restart
+rule changes have deterministic tested behavior
+baseline unavailable does not trigger baseline condition
 ```
 
 ---
