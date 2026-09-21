@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Wanetra.Application.Alerts;
 using Wanetra.Domain;
 
 namespace Wanetra.Application.SpeedTests;
@@ -9,6 +10,7 @@ namespace Wanetra.Application.SpeedTests;
 public sealed class SpeedTestExecutor(
     ISpeedTestEngine engine,
     ISpeedTestResultRepository repository,
+    AlertEvaluationService alertEvaluationService,
     TimeProvider timeProvider,
     ILogger<SpeedTestExecutor> logger)
 {
@@ -50,6 +52,11 @@ public sealed class SpeedTestExecutor(
         result.DurationMs = (long)timeProvider.GetElapsedTime(startedTimestamp).TotalMilliseconds;
 
         await repository.AddAsync(result, cancellationToken);
+
+        if (result.Success)
+        {
+            await alertEvaluationService.EvaluateAsync(result, cancellationToken);
+        }
 
         if (result.Success)
         {

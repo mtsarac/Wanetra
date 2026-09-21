@@ -186,6 +186,7 @@ public class ScheduleWorkerTests
             services.AddSingleton<TimeProvider>(Time);
             services.AddSingleton<IScheduleSettingsRepository>(Schedules);
             services.AddSingleton<ISpeedTestResultRepository>(Repository);
+            services.AddSingleton<IAlertStateRepository, RecordingAlertStateRepository>();
             services.AddSingleton<ISpeedTestEngine>(new StubSpeedTestEngine(async token =>
             {
                 Interlocked.Increment(ref counter.invocations);

@@ -55,6 +55,17 @@ export type Baseline = {
   upload: MetricBaseline
 }
 
+export type ActiveAlert = {
+  id: number
+  startedAt: string
+  status: 'active' | 'recovering'
+  reason: string
+  baselineDownloadMbps: number | null
+  worstDownloadMbps: number | null
+  baselineUploadMbps: number | null
+  worstUploadMbps: number | null
+}
+
 type ApiError = { message?: string }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -83,6 +94,12 @@ export const api = {
   getStatus: () => request<SpeedTestStatus>('/api/speedtests/status'),
   getSchedule: () => request<Schedule>('/api/schedule'),
   getBaseline: () => request<Baseline>('/api/baseline'),
+  getActiveAlert: async () => {
+    const response = await fetch('/api/alerts/active')
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error(`Request failed (${response.status})`)
+    return response.json() as Promise<ActiveAlert>
+  },
   runSpeedTest: () => request<{ status: string }>('/api/speedtests/run', { method: 'POST' }),
   getHistoryPage: (from: Date, page: number) => request<SpeedTestHistoryPage>(
     `/api/speedtests?${new URLSearchParams({

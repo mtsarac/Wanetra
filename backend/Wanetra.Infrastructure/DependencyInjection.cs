@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddDbContext<WanetraDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<ISpeedTestResultRepository, SpeedTestResultRepository>();
         services.AddScoped<IScheduleSettingsRepository, ScheduleSettingsRepository>();
+        services.AddScoped<IAlertStateRepository, AlertStateRepository>();
 
         services.AddOptions<LibreSpeedOptions>()
             .Bind(configuration.GetSection(LibreSpeedOptions.SectionName))
