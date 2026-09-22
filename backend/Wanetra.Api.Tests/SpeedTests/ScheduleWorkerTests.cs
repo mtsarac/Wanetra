@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -187,6 +188,8 @@ public class ScheduleWorkerTests
             services.AddSingleton<IScheduleSettingsRepository>(Schedules);
             services.AddSingleton<ISpeedTestResultRepository>(Repository);
             services.AddSingleton<IAlertStateRepository, RecordingAlertStateRepository>();
+            services.AddSingleton<INotificationConfigurationRepository, RecordingNotificationConfigurationRepository>();
+            services.AddSingleton(new HttpClient());
             services.AddSingleton<ISpeedTestEngine>(new StubSpeedTestEngine(async token =>
             {
                 Interlocked.Increment(ref counter.invocations);

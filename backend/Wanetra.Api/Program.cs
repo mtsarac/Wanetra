@@ -29,6 +29,7 @@ app.MapSpeedTestEndpoints();
 app.MapScheduleEndpoints();
 app.MapBaselineEndpoints();
 app.MapAlertEndpoints();
+app.MapNotificationEndpoints();
 app.MapFallbackToFile("index.html");
 
 app.Run();

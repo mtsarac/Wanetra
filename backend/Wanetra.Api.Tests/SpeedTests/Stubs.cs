@@ -1,3 +1,4 @@
+using Wanetra.Application.Notifications;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Processes;
 
@@ -52,9 +53,26 @@ internal sealed class RecordingAlertStateRepository : IAlertStateRepository
 
     public Task<DegradationEvent?> GetOpenEventAsync(CancellationToken cancellationToken) => Task.FromResult<DegradationEvent?>(null);
 
+    public Task<DegradationEvent?> GetEventAsync(long id, CancellationToken cancellationToken) => Task.FromResult<DegradationEvent?>(null);
+
     public void AddEvent(DegradationEvent degradationEvent) { }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+internal sealed class RecordingNotificationConfigurationRepository : INotificationConfigurationRepository
+{
+    public Task<IReadOnlyList<NotificationConfiguration>> ListAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<NotificationConfiguration>>([]);
+
+    public Task SaveAsync(IReadOnlyList<NotificationConfiguration> configurations, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+}
+internal sealed class StubNotificationProvider(string name) : INotificationProvider
+{
+    public string Name => name;
+
+    public Task SendAsync(NotificationMessage message, string configurationJson, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 }
 
 internal sealed class StubProcessRunner(ProcessResult result) : IProcessRunner
