@@ -21,6 +21,11 @@ All notable changes to Wanetra will be documented here.
   `*/30 * * * *` in `Europe/Istanbul`; upcoming runs are reported in UTC,
   missed runs are skipped instead of caught up, and a bad cron expression
   or timezone answers `400`.
+- Degradation and recovery notifications via ntfy and generic webhook:
+  `GET`/`PUT /api/notifications` (secrets redacted, blank fields keep stored
+  values) plus `POST /api/notifications/test`, dispatched once per
+  degradation-event transition; provider failures are logged without crashing
+  the run.
 
 ### Fixed
 

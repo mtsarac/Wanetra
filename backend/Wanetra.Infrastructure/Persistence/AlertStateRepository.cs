@@ -33,7 +33,8 @@ internal sealed class AlertStateRepository(WanetraDbContext dbContext) : IAlertS
             .OrderBy(degradationEvent => degradationEvent.StartedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<DegradationEvent?> GetEventAsync(long id, CancellationToken cancellationToken) =>
+        dbContext.DegradationEvents.SingleOrDefaultAsync(degradationEvent => degradationEvent.Id == id, cancellationToken);
     public void AddEvent(DegradationEvent degradationEvent) => dbContext.DegradationEvents.Add(degradationEvent);
-
     public Task SaveChangesAsync(CancellationToken cancellationToken) => dbContext.SaveChangesAsync(cancellationToken);
 }

@@ -1,4 +1,5 @@
 using Wanetra.Application.Baselines;
+using Wanetra.Application.Notifications;
 using Wanetra.Domain;
 
 namespace Wanetra.Application.Alerts;
@@ -8,17 +9,18 @@ public sealed class AlertEvaluationService(
     BaselineService baselineService,
     TimeProvider timeProvider)
 {
-    public async Task EvaluateAsync(SpeedTestResult result, CancellationToken cancellationToken)
+    public async Task<(NotificationTrigger? Trigger, long? EventId)> EvaluateAsync(
+        SpeedTestResult result, CancellationToken cancellationToken)
     {
         if (!result.Success)
         {
-            return;
+            return (null, null);
         }
 
         var rule = await repository.GetEnabledRuleAsync(cancellationToken);
         if (rule is null || rule.ConsecutiveFailuresRequired < 1 || rule.ConsecutiveRecoveriesRequired < 1)
         {
-            return;
+            return (null, null);
         }
 
         var state = await repository.GetStateAsync(cancellationToken);
@@ -28,24 +30,35 @@ public sealed class AlertEvaluationService(
         var evaluation = AlertConditionEvaluator.Evaluate(rule, result, baseline);
         if (!evaluation.Evaluated)
         {
-            return;
+            return (null, null);
         }
 
+        DegradationEvent? openedEvent = null;
+        var recovered = false;
         var openEvent = await repository.GetOpenEventAsync(cancellationToken);
         if (openEvent is null)
         {
-            EvaluateWithoutOpenEvent(result, rule, state, evaluation, baseline);
+            openedEvent = EvaluateWithoutOpenEvent(result, rule, state, evaluation, baseline);
         }
         else
         {
-            EvaluateOpenEvent(result, rule, state, openEvent, evaluation);
+            recovered = EvaluateOpenEvent(result, rule, state, openEvent, evaluation);
         }
 
         state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
         await repository.SaveChangesAsync(cancellationToken);
+
+        if (openedEvent is not null)
+        {
+            return (NotificationTrigger.Opened, openedEvent.Id);
+        }
+
+        return recovered && openEvent is not null
+            ? (NotificationTrigger.Recovered, openEvent.Id)
+            : (null, null);
     }
 
-    private void EvaluateWithoutOpenEvent(
+    private DegradationEvent? EvaluateWithoutOpenEvent(
         SpeedTestResult result,
         AlertRule rule,
         AlertState state,
@@ -56,17 +69,17 @@ public sealed class AlertEvaluationService(
         {
             state.ConsecutiveUnhealthyMeasurements = 0;
             state.ConsecutiveHealthyMeasurements = 0;
-            return;
+            return null;
         }
 
         state.ConsecutiveUnhealthyMeasurements++;
         state.ConsecutiveHealthyMeasurements = 0;
         if (state.ConsecutiveUnhealthyMeasurements < rule.ConsecutiveFailuresRequired)
         {
-            return;
+            return null;
         }
 
-        repository.AddEvent(new DegradationEvent
+        var degradationEvent = new DegradationEvent
         {
             StartedAt = result.Timestamp,
             Status = DegradationStatus.Active,
@@ -79,11 +92,13 @@ public sealed class AlertEvaluationService(
             MaxJitterMs = result.JitterMs,
             MaxPacketLossPercent = result.PacketLossPercent,
             ConsecutiveUnhealthyMeasurements = state.ConsecutiveUnhealthyMeasurements,
-        });
+        };
+        repository.AddEvent(degradationEvent);
         state.ConsecutiveUnhealthyMeasurements = 0;
+        return degradationEvent;
     }
 
-    private static void EvaluateOpenEvent(
+    private static bool EvaluateOpenEvent(
         SpeedTestResult result,
         AlertRule rule,
         AlertState state,
@@ -98,7 +113,7 @@ public sealed class AlertEvaluationService(
             openEvent.ConsecutiveUnhealthyMeasurements++;
             state.ConsecutiveHealthyMeasurements = 0;
             state.ConsecutiveUnhealthyMeasurements = 0;
-            return;
+            return false;
         }
 
         openEvent.Status = DegradationStatus.Recovering;
@@ -108,12 +123,13 @@ public sealed class AlertEvaluationService(
         state.ConsecutiveUnhealthyMeasurements = 0;
         if (openEvent.ConsecutiveHealthyMeasurements < rule.ConsecutiveRecoveriesRequired)
         {
-            return;
+            return false;
         }
 
         openEvent.Status = DegradationStatus.Recovered;
         openEvent.EndedAt = result.Timestamp;
         state.ConsecutiveHealthyMeasurements = 0;
+        return true;
     }
 
     private static void ResetPendingOnRuleChange(AlertState state, AlertRule rule)

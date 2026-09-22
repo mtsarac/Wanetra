@@ -66,6 +66,20 @@ export type ActiveAlert = {
   worstUploadMbps: number | null
 }
 
+export type NotificationConfiguration = {
+  id: number
+  provider: string
+  enabled: boolean
+  hasConfiguration: boolean
+  updatedAt: string
+}
+
+export type NotificationConfigurationList = {
+  configurations: NotificationConfiguration[]
+}
+
+export type NotificationTestTarget = { id: number } | { provider: string; configurationJson: string }
+
 type ApiError = { message?: string }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -101,6 +115,19 @@ export const api = {
     return response.json() as Promise<ActiveAlert>
   },
   runSpeedTest: () => request<{ status: string }>('/api/speedtests/run', { method: 'POST' }),
+  getNotifications: () => request<NotificationConfigurationList>('/api/notifications'),
+  saveNotifications: (configurations: { provider: string; enabled: boolean; configurationJson: string }[]) =>
+    request<NotificationConfigurationList>('/api/notifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ configurations }),
+    }),
+  testNotification: (target: NotificationTestTarget) =>
+    request<void>('/api/notifications/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(target),
+    }),
   getHistoryPage: (from: Date, page: number) => request<SpeedTestHistoryPage>(
     `/api/speedtests?${new URLSearchParams({
       from: from.toISOString(),

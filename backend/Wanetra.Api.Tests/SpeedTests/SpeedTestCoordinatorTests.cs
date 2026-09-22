@@ -1,9 +1,10 @@
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Wanetra.Application;
+using Wanetra.Application.Notifications;
 using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
-
 namespace Wanetra.Api.Tests.SpeedTests;
 
 public class SpeedTestCoordinatorTests
@@ -113,6 +114,8 @@ public class SpeedTestCoordinatorTests
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<ISpeedTestResultRepository>(repository);
         services.AddSingleton<IAlertStateRepository, RecordingAlertStateRepository>();
+        services.AddSingleton<INotificationConfigurationRepository, RecordingNotificationConfigurationRepository>();
+        services.AddSingleton(new HttpClient());
         services.AddSingleton<ISpeedTestEngine>(new StubSpeedTestEngine(run));
         services.AddApplication();
 

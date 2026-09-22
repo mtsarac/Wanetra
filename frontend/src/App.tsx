@@ -6,6 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, getHistory, type MetricBaseline, type SpeedTestResult } from './lib/api'
+import NotificationsPanel from './Notifications'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -106,6 +107,7 @@ function App() {
         <div className="panel chart-panel"><div className="panel-head"><div><p className="kicker">THROUGHPUT</p><h2>Speed history</h2></div><div className="range-tabs">{(Object.keys(ranges) as Range[]).map((item) => <button className={range === item ? 'selected' : ''} key={item} onClick={() => setRange(item)}>{item}</button>)}</div></div>{history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <Chart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}</div>
         <aside className="panel schedule"><p className="kicker">SCHEDULE</p><div className="schedule-state"><i className={schedule.data?.enabled ? 'on' : ''} /> {schedule.data?.enabled ? 'Enabled' : 'Disabled'}</div><dl><dt>Expression</dt><dd>{schedule.data?.cronExpression ?? '—'}</dd><dt>Timezone</dt><dd>{schedule.data?.timezone ?? '—'}</dd><dt>Next run</dt><dd>{formatTime(schedule.data?.nextRuns[0])}</dd></dl></aside>
       </section>
+      <NotificationsPanel />
       <section className="panel recent"><div className="panel-head"><div><p className="kicker">RECENT MEASUREMENTS</p><h2>Latest readings</h2></div><span className="muted">{latest.data ? `Updated ${formatTime(latest.data.timestamp)}` : '—'}</span></div>{recent.length ? <div className="table-wrap"><table><thead><tr><th>Time</th><th>Download</th><th>Upload</th><th>Latency</th><th>Result</th></tr></thead><tbody>{recent.map((item) => <tr key={item.id}><td>{formatTime(item.timestamp)}</td><td>{formatNumber(item.downloadMbps, 'Mbps')}</td><td>{formatNumber(item.uploadMbps, 'Mbps')}</td><td>{formatNumber(item.latencyMs, 'ms')}</td><td className={item.success ? 'success' : 'failure'}>{item.success ? 'Success' : 'Failed'}</td></tr>)}</tbody></table></div> : <div className="empty">No measurements recorded yet. Run first test.</div>}</section>
     </main>
   )

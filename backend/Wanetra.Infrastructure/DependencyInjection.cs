@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Wanetra.Application.Notifications;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Persistence;
 using Wanetra.Infrastructure.Processes;
@@ -27,6 +28,9 @@ public static class DependencyInjection
         services.AddScoped<ISpeedTestResultRepository, SpeedTestResultRepository>();
         services.AddScoped<IScheduleSettingsRepository, ScheduleSettingsRepository>();
         services.AddScoped<IAlertStateRepository, AlertStateRepository>();
+        services.AddScoped<INotificationConfigurationRepository, NotificationConfigurationRepository>();
+        services.AddHttpClient<NtfyNotificationProvider>();
+        services.AddHttpClient<WebhookNotificationProvider>();
 
         services.AddOptions<LibreSpeedOptions>()
             .Bind(configuration.GetSection(LibreSpeedOptions.SectionName))
