@@ -5,6 +5,8 @@ obj/
 # Local workspace metadata
 .codegraph/
 .omo/
+.omp/
+.serena/
 docs/superpowers/
 
 # IDE

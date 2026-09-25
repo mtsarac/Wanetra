@@ -36,17 +36,16 @@ All notable changes to Wanetra will be documented here.
   for amd64 and arm64, preserving the upstream license text.
 - Docker Compose uses a managed `/data` volume so a first run keeps the
   application non-root without host bind-mount ownership setup.
-- Docker Compose now builds Wanetra locally for the Docker builder's platform;
-  the Dockerfile selects the matching LibreSpeed CLI instead of requiring a
-  prebuilt Wanetra image.
+- The local-build Compose example selects the Docker builder's platform; the
+  Dockerfile installs the matching LibreSpeed CLI.
 - React Router pages for dashboard, filtered/paginated test history with detail
   rows, alert-rule editing, notifications, and schedule/retention settings.
 - Dashboard includes speed and connection-quality charts with 6-hour through
   90-day and custom time ranges.
 - Tag-triggered GHCR release workflow publishes amd64 and arm64 container
   manifests.
-- Pull-only Docker Compose example for versioned GHCR releases, with a pinned
-  default image and a configurable release version.
+- Root `docker-compose.yaml` pulls a pinned GHCR release and starts with a
+  Docker-managed data volume without additional configuration.
 - Prometheus latest-result and degradation gauges restore from SQLite on startup.
 - Read-only alert event history at `GET /api/alerts/events?count=` and an
   incident list alongside threshold configuration.
