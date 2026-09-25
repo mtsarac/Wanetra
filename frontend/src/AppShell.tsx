@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router'
+import { useEffect } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router'
 
 const navigation = [
   { to: '/', label: 'Dashboard', end: true },
@@ -9,6 +10,27 @@ const navigation = [
 ]
 
 export default function AppShell() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const elements = document.querySelectorAll<HTMLElement>('#main-content > header, #main-content > section')
+    elements.forEach((element, index) => {
+      element.classList.add('reveal')
+      element.style.setProperty('--reveal-index', String(Math.min(index, 5)))
+    })
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.classList.add('is-visible')
+        observer.unobserve(entry.target)
+      })
+    }, { threshold: 0.08 })
+
+    elements.forEach((element) => observer.observe(element))
+    return () => observer.disconnect()
+  }, [location.pathname])
+
   return (
     <div className="shell">
       <a className="skip-link" href="#main-content">Skip to content</a>

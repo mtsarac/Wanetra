@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type AlertRule, type AlertRuleUpdate } from './lib/api'
+import { Button } from './components/ui/button'
 
 const defaults: AlertRuleUpdate = {
   name: 'WAN health',
@@ -121,7 +122,7 @@ export default function AlertSettings() {
               <label><span>Consecutive unhealthy tests</span><input type="number" min="1" step="1" value={values.consecutiveFailuresRequired} onChange={(event) => setDraft({ ...values, consecutiveFailuresRequired: Number(event.target.value) })} required /></label>
               <label><span>Consecutive recovery tests</span><input type="number" min="1" step="1" value={values.consecutiveRecoveriesRequired} onChange={(event) => setDraft({ ...values, consecutiveRecoveriesRequired: Number(event.target.value) })} required /></label>
             </div>
-            <div className="form-actions"><button type="submit" disabled={save.isPending || rule.isLoading}>{save.isPending ? 'Saving…' : 'Save alert rule'}</button>{message && <span className={save.isError ? 'failure' : 'success'} role="status">{message}</span>}</div>
+            <div className="form-actions"><Button type="submit" disabled={save.isPending || rule.isLoading}>{save.isPending ? 'Saving…' : 'Save alert rule'}</Button>{message && <span className={save.isError ? 'failure' : 'success'} role="status">{message}</span>}</div>
           </form>
         )}
         {rule.error && <div className="error" role="alert">{rule.error.message}</div>}

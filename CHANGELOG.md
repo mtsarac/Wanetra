@@ -62,6 +62,9 @@ All notable changes to Wanetra will be documented here.
 - Refreshed the monitoring interface with a responsive signal-focused dashboard,
   updated chart colors, consistent form surfaces, keyboard navigation, and a
   matching application icon.
+- Reworked the frontend with Tailwind CSS and local shadcn/ui primitives: warm
+  monochrome surfaces, system monospace typography, muted semantic colors,
+  responsive bento layouts, and reduced-motion-aware reveal transitions.
 
 - GHCR now publishes `latest` and a commit-SHA image after successful `main`
   CI; version tags publish semantic-version images without overwriting `latest`.
