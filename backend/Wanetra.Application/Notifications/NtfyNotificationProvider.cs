@@ -35,10 +35,10 @@ public sealed record NtfyConfiguration(
             throw new ArgumentException("ntfy configuration requires serverUrl and topic.");
         }
 
-        if (!Uri.TryCreate(options.ServerUrl.Trim(), UriKind.Absolute, out _))
-        {
-            throw new ArgumentException("ntfy serverUrl must be an absolute URL.");
-        }
+        var serverUrl = NotificationUrlValidator.RequireHttpUrl(
+            options.ServerUrl,
+            "ntfy serverUrl",
+            allowQuery: false);
 
         if (options.Topic.Trim().Contains('/') || options.Topic.Trim().Contains(' '))
         {
@@ -46,7 +46,7 @@ public sealed record NtfyConfiguration(
         }
 
         return new NtfyConfiguration(
-            options.ServerUrl.Trim().TrimEnd('/'),
+            serverUrl.TrimEnd('/'),
             options.Topic.Trim(),
             string.IsNullOrWhiteSpace(options.Username) ? null : options.Username.Trim(),
             string.IsNullOrWhiteSpace(options.Password) ? null : options.Password.Trim(),
@@ -74,7 +74,7 @@ public sealed class NtfyNotificationProvider(HttpClient httpClient) : INotificat
     public async Task SendAsync(NotificationMessage message, string configurationJson, CancellationToken cancellationToken)
     {
         var config = NtfyConfiguration.Parse(configurationJson);
-        using var request = new HttpRequestMessage(HttpMethod.Put, $"{config.ServerUrl}/{config.Topic}")
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"{config.ServerUrl}/{Uri.EscapeDataString(config.Topic)}")
         {
             Content = new StringContent(message.Body, Encoding.UTF8, "text/plain"),
         };

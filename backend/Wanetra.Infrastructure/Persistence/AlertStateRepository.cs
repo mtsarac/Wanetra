@@ -46,6 +46,13 @@ internal sealed class AlertStateRepository(WanetraDbContext dbContext) : IAlertS
             .ThenByDescending(degradationEvent => degradationEvent.Id)
             .Take(count)
             .ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<DegradationEvent>> GetPendingNotificationEventsAsync(CancellationToken cancellationToken) =>
+        await dbContext.DegradationEvents
+            .Where(degradationEvent => !degradationEvent.NotificationSent
+                || (degradationEvent.Status == DegradationStatus.Recovered && !degradationEvent.RecoveryNotificationSent))
+            .OrderBy(degradationEvent => degradationEvent.StartedAt)
+            .ThenBy(degradationEvent => degradationEvent.Id)
+            .ToListAsync(cancellationToken);
     public void AddRule(AlertRule rule) => dbContext.AlertRules.Add(rule);
     public void AddEvent(DegradationEvent degradationEvent) => dbContext.DegradationEvents.Add(degradationEvent);
     public Task SaveChangesAsync(CancellationToken cancellationToken) => dbContext.SaveChangesAsync(cancellationToken);

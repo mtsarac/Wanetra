@@ -1,12 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Wanetra.Api.Contracts;
 
 namespace Wanetra.Api.Tests.SpeedTests;
 
 public class NotificationApiTests
 {
-    private const string NtfyJson = """{"serverUrl":"https://ntfy.sh","topic":"wanetra"}""";
+    private const string NtfyJson = """{"serverUrl":"https://ntfy.sh","topic":"wanetra","username":"wanetra-user","password":"private-password","token":"private-token"}""";
     private const string WebhookJson = """{"url":"https://example.com/hook"}""";
 
     [Fact]
@@ -20,6 +22,25 @@ public class NotificationApiTests
         Assert.NotNull(list);
         Assert.Empty(list.Configurations);
     }
+    [Fact]
+    public async Task Put_ignores_empty_disabled_providers_but_rejects_an_enabled_incomplete_provider()
+    {
+        await using var factory = new WanetraApiFactory();
+        var client = factory.CreateClient();
+
+        var empty = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+        [
+            new NotificationConfigurationUpdateRequest("ntfy", false, """{"serverUrl":"","topic":""}"""),
+            new NotificationConfigurationUpdateRequest("webhook", false, """{"url":"","method":"POST"}"""),
+        ]));
+        Assert.Equal(HttpStatusCode.OK, empty.StatusCode);
+        Assert.Empty((await empty.Content.ReadFromJsonAsync<NotificationConfigurationListResponse>())!.Configurations);
+
+        var enabled = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest("ntfy", true, """{"serverUrl":"","topic":""}""")]));
+        Assert.Equal(HttpStatusCode.BadRequest, enabled.StatusCode);
+    }
+
 
     [Fact]
     public async Task Put_persists_and_redacts_configuration()
@@ -45,6 +66,33 @@ public class NotificationApiTests
         Assert.NotNull(reloaded);
         Assert.Equal(2, reloaded.Configurations.Count);
         Assert.True(reloaded.Configurations.All(configuration => configuration.HasConfiguration));
+        var rawResponse = await client.GetStringAsync("/api/notifications");
+        Assert.DoesNotContain("private-password", rawResponse);
+        Assert.DoesNotContain("private-token", rawResponse);
+    }
+    [Fact]
+    public async Task Put_preserves_blank_secret_fields_while_updating_other_settings()
+    {
+        await using var factory = new WanetraApiFactory();
+        var client = factory.CreateClient();
+        var first = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest("ntfy", true, NtfyJson)]));
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        var updatedJson = """{"serverUrl":"","topic":"","username":"","password":"","token":"","priority":"high"}""";
+        var update = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest("ntfy", true, updatedJson)]));
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<Wanetra.Infrastructure.Persistence.WanetraDbContext>()
+            .NotificationConfigurations.SingleAsync(configuration => configuration.Provider == "ntfy");
+        using var document = System.Text.Json.JsonDocument.Parse(stored.ConfigurationJson);
+        Assert.Equal("https://ntfy.sh", document.RootElement.GetProperty("serverUrl").GetString());
+        Assert.Equal("wanetra", document.RootElement.GetProperty("topic").GetString());
+        Assert.Equal("private-password", document.RootElement.GetProperty("password").GetString());
+        Assert.Equal("private-token", document.RootElement.GetProperty("token").GetString());
+        Assert.Equal("high", document.RootElement.GetProperty("priority").GetString());
     }
 
     [Fact]
@@ -71,7 +119,13 @@ public class NotificationApiTests
     [InlineData("bogus", "{}")]
     [InlineData("ntfy", "{}")]
     [InlineData("ntfy", """{"serverUrl":"not-a-url","topic":"t"}""")]
+    [InlineData("ntfy", """{"serverUrl":"file:///tmp/ntfy","topic":"t"}""")]
+    [InlineData("ntfy", """{"serverUrl":"ftp://ntfy.local","topic":"t"}""")]
+    [InlineData("ntfy", """{"serverUrl":"https://ntfy.local/base?token=secret","topic":"t"}""")]
     [InlineData("webhook", """{"url":"not-a-url"}""")]
+    [InlineData("webhook", """{"url":"gopher://example.com/hook"}""")]
+    [InlineData("webhook", """{"url":"https://user:pass@example.com/hook"}""")]
+    [InlineData("webhook", """{"url":"https://example.com/hook#secret"}""")]
     [InlineData("webhook", """{"url":"https://example.com/hook","method":"DELETE"}""")]
     [InlineData("ntfy", "not-json")]
     public async Task Put_rejects_invalid_config(string provider, string json)
@@ -83,9 +137,24 @@ public class NotificationApiTests
             [new NotificationConfigurationUpdateRequest(provider, true, json)]));
 
         Assert.Equal(HttpStatusCode.BadRequest, update.StatusCode);
+        var body = await update.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("secret", body);
         var error = await update.Content.ReadFromJsonAsync<ApiError>();
         Assert.NotNull(error);
         Assert.Equal("invalid_request", error.Code);
+    }
+    [Theory]
+    [InlineData("ntfy", """{"serverUrl":"http://127.0.0.1:8081","topic":"wanetra"}""")]
+    [InlineData("webhook", """{"url":"http://192.168.1.23:9000/hook"}""")]
+    public async Task Put_allows_private_network_notification_urls(string provider, string json)
+    {
+        await using var factory = new WanetraApiFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest(provider, true, json)]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]

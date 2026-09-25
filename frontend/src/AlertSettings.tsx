@@ -25,12 +25,12 @@ type NumericThreshold =
   | 'downloadBaselineDropPercent'
   | 'uploadBaselineDropPercent'
 
-const thresholds: { key: NumericThreshold; label: string; unit: string; percent?: boolean }[] = [
+const thresholds: { key: NumericThreshold; label: string; unit: string; percent?: boolean; note?: string }[] = [
   { key: 'minDownloadMbps', label: 'Minimum download', unit: 'Mbps' },
   { key: 'minUploadMbps', label: 'Minimum upload', unit: 'Mbps' },
   { key: 'maxLatencyMs', label: 'Maximum latency', unit: 'ms' },
   { key: 'maxJitterMs', label: 'Maximum jitter', unit: 'ms' },
-  { key: 'maxPacketLossPercent', label: 'Maximum packet loss', unit: '%' },
+  { key: 'maxPacketLossPercent', label: 'Maximum packet loss', unit: '%', note: 'Unavailable with LibreSpeed; this threshold is not applied.' },
   { key: 'downloadBaselineDropPercent', label: 'Download drop from baseline', unit: '%', percent: true },
   { key: 'uploadBaselineDropPercent', label: 'Upload drop from baseline', unit: '%', percent: true },
 ]
@@ -88,13 +88,13 @@ export default function AlertSettings() {
     <main className="page-content">
       <header className="page-title"><div><p className="kicker">WANETRA / CONNECTION HEALTH</p><h1>Alerts</h1></div><span className="muted">Thresholds and incident history</span></header>
       <section className="panel settings-panel">
-        <div className="panel-head"><div><p className="kicker">ALERTS / THRESHOLDS</p><h2>Degradation rule</h2></div><span className="muted">Any configured condition can trigger an incident</span></div>
+        <div className="panel-head"><div><p className="kicker">ALERTS / THRESHOLDS</p><h2>Degradation rule</h2></div><span className="muted">Supported conditions can trigger an incident</span></div>
         {rule.isLoading ? <div className="empty">Loading alert rule…</div> : (
           <form onSubmit={submit}>
             <label className="setting-check"><input type="checkbox" checked={values.enabled} onChange={(event) => setDraft({ ...values, enabled: event.target.checked })} /> Enable alert evaluation</label>
             <div className="settings-grid">
               <label><span>Rule name</span><input value={values.name} onChange={(event) => setDraft({ ...values, name: event.target.value })} required /></label>
-              {thresholds.map(({ key, label, unit, percent }) => (
+              {thresholds.map(({ key, label, unit, percent, note }) => (
                 <label key={key}>
                   <span>{label} <small>{unit}</small></span>
                   <input
@@ -105,7 +105,9 @@ export default function AlertSettings() {
                     value={values[key] ?? ''}
                     onChange={(event) => setThreshold(key, event.target.value)}
                     placeholder="Disabled"
+                    disabled={note !== undefined}
                   />
+                  {note && <small className="muted">{note}</small>}
                 </label>
               ))}
               <label><span>Consecutive unhealthy tests</span><input type="number" min="1" step="1" value={values.consecutiveFailuresRequired} onChange={(event) => setDraft({ ...values, consecutiveFailuresRequired: Number(event.target.value) })} required /></label>

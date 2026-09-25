@@ -208,12 +208,13 @@ export const api = {
   },
 }
 
-export async function getHistory(from: Date): Promise<SpeedTestResult[]> {
-  const firstPage = await api.getHistoryPage({ from, page: 1, pageSize: 200, sort: 'asc' })
+export async function getHistory(from: Date, to?: Date): Promise<SpeedTestResult[]> {
+  const query: HistoryQuery = { from, to, sort: 'asc', page: 1, pageSize: 200 }
+  const firstPage = await api.getHistoryPage(query)
   const pages = await Promise.all(
     Array.from(
-      { length: firstPage.totalPages - 1 },
-      (_, index) => api.getHistoryPage({ from, page: index + 2, pageSize: 200, sort: 'asc' }),
+      { length: Math.max(firstPage.totalPages - 1, 0) },
+      (_, index) => api.getHistoryPage({ ...query, page: index + 2 }),
     ),
   )
 

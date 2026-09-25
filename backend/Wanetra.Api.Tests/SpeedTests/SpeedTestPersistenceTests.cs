@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Wanetra.Application.Notifications;
 using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Persistence;
@@ -10,6 +11,63 @@ namespace Wanetra.Api.Tests.SpeedTests;
 
 public class SpeedTestPersistenceTests
 {
+    [Fact]
+    public async Task Failed_measurement_is_persisted_evaluated_and_notified()
+    {
+        var provider = new RecordingNotificationProvider();
+        await using var factory = new FailedEngineApiFactory(provider);
+        using (var setupScope = factory.Services.CreateScope())
+        {
+            var db = setupScope.ServiceProvider.GetRequiredService<WanetraDbContext>();
+            var rule = await db.AlertRules.SingleAsync();
+            rule.ConsecutiveFailuresRequired = 1;
+            await db.NotificationConfigurations.AddAsync(new NotificationConfiguration
+            {
+                Provider = "webhook",
+                Enabled = true,
+                ConfigurationJson = """{"url":"https://example.com/hook"}""",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        await factory.Services.GetRequiredService<SpeedTestCoordinator>().TryStart(SpeedTestTrigger.Manual)!;
+
+        using var verifyScope = factory.Services.CreateScope();
+        var dbContext = verifyScope.ServiceProvider.GetRequiredService<WanetraDbContext>();
+        var result = await dbContext.SpeedTestResults.SingleAsync();
+        var degradationEvent = await dbContext.DegradationEvents.SingleAsync();
+        Assert.False(result.Success);
+        Assert.Equal("DNS lookup failed", result.ErrorMessage);
+        Assert.Equal("speed test failed", degradationEvent.Reason);
+        Assert.True(degradationEvent.NotificationSent);
+        Assert.Single(provider.Sent);
+    }
+
+    [Fact]
+    public async Task Cancelled_measurement_does_not_create_degradation()
+    {
+        await using var factory = new WaitingEngineApiFactory();
+        using (var setupScope = factory.Services.CreateScope())
+        {
+            var rule = await setupScope.ServiceProvider.GetRequiredService<WanetraDbContext>().AlertRules.SingleAsync();
+            rule.ConsecutiveFailuresRequired = 1;
+            await setupScope.ServiceProvider.GetRequiredService<WanetraDbContext>().SaveChangesAsync();
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        var running = factory.Services.GetRequiredService<SpeedTestCoordinator>()
+            .TryStart(SpeedTestTrigger.Manual, cancellation.Token);
+        await cancellation.CancelAsync();
+        await running!;
+
+        using var verifyScope = factory.Services.CreateScope();
+        var db = verifyScope.ServiceProvider.GetRequiredService<WanetraDbContext>();
+        Assert.Empty(await db.SpeedTestResults.ToListAsync());
+        Assert.Empty(await db.DegradationEvents.ToListAsync());
+    }
+
     [Fact]
     public async Task Successful_persisted_result_is_evaluated_by_alert_engine()
     {
@@ -64,6 +122,52 @@ public class SpeedTestPersistenceTests
                 services.AddScoped<ISpeedTestEngine>(_ => new StubSpeedTestEngine(_ =>
                     Task.FromResult(new SpeedTestResult { Engine = "stub", DownloadMbps = 50 })));
             });
+        }
+    }
+    private sealed class FailedEngineApiFactory(RecordingNotificationProvider provider) : WanetraApiFactory
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            base.ConfigureWebHost(builder);
+
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<ISpeedTestEngine>();
+                services.AddScoped<ISpeedTestEngine>(_ => new StubSpeedTestEngine(_ =>
+                    throw new InvalidOperationException("DNS lookup failed")));
+                services.RemoveAll<INotificationProvider>();
+                services.AddSingleton<INotificationProvider>(provider);
+            });
+        }
+    }
+
+    private sealed class WaitingEngineApiFactory : WanetraApiFactory
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            base.ConfigureWebHost(builder);
+
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<ISpeedTestEngine>();
+                services.AddScoped<ISpeedTestEngine>(_ => new StubSpeedTestEngine(async token =>
+                {
+                    await Task.Delay(Timeout.Infinite, token);
+                    return new SpeedTestResult { Engine = "stub" };
+                }));
+            });
+        }
+    }
+
+    private sealed class RecordingNotificationProvider : INotificationProvider
+    {
+        public string Name => "webhook";
+        public List<NotificationMessage> Sent { get; } = [];
+
+        public Task SendAsync(NotificationMessage message, string configurationJson, CancellationToken cancellationToken)
+        {
+            Sent.Add(message);
+            return Task.CompletedTask;
         }
     }
 }

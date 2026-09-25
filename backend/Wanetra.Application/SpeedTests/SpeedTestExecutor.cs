@@ -57,13 +57,10 @@ public sealed class SpeedTestExecutor(
         await repository.AddAsync(result, cancellationToken);
         metrics.RecordSpeedTest(result);
 
-        if (result.Success)
+        var (trigger, eventId) = await alertEvaluationService.EvaluateAsync(result, cancellationToken);
+        if (trigger.HasValue && eventId.HasValue)
         {
-            var (trigger, eventId) = await alertEvaluationService.EvaluateAsync(result, cancellationToken);
-            if (trigger.HasValue && eventId.HasValue)
-            {
-                await notificationDispatcher.DispatchAsync(trigger.Value, eventId.Value, cancellationToken);
-            }
+            await notificationDispatcher.DispatchAsync(trigger.Value, eventId.Value, cancellationToken);
         }
 
         if (result.Success)

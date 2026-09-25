@@ -13,11 +13,6 @@ public sealed class AlertEvaluationService(
     public async Task<(NotificationTrigger? Trigger, long? EventId)> EvaluateAsync(
         SpeedTestResult result, CancellationToken cancellationToken)
     {
-        if (!result.Success)
-        {
-            return (null, null);
-        }
-
         var rule = await repository.GetEnabledRuleAsync(cancellationToken);
         if (rule is null || rule.ConsecutiveFailuresRequired < 1 || rule.ConsecutiveRecoveriesRequired < 1)
         {
@@ -27,12 +22,8 @@ public sealed class AlertEvaluationService(
         var state = await repository.GetStateAsync(cancellationToken);
         ResetPendingOnRuleChange(state, rule);
 
-        var baseline = await baselineService.GetAsync(cancellationToken);
+        var baseline = await baselineService.GetForMeasurementAsync(result.Timestamp, cancellationToken);
         var evaluation = AlertConditionEvaluator.Evaluate(rule, result, baseline);
-        if (!evaluation.Evaluated)
-        {
-            return (null, null);
-        }
 
         DegradationEvent? openedEvent = null;
         var recovered = false;
@@ -47,8 +38,8 @@ public sealed class AlertEvaluationService(
         }
 
         state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
-        metrics.SetConnectionDegraded(await repository.GetOpenEventAsync(cancellationToken) is not null);
         await repository.SaveChangesAsync(cancellationToken);
+        metrics.SetConnectionDegraded(await repository.GetOpenEventAsync(cancellationToken) is not null);
 
         if (openedEvent is not null)
         {
@@ -107,9 +98,9 @@ public sealed class AlertEvaluationService(
         DegradationEvent openEvent,
         AlertEvaluationResult evaluation)
     {
-        UpdateWorstMetrics(openEvent, result);
         if (evaluation.Unhealthy)
         {
+            UpdateWorstMetrics(openEvent, result);
             openEvent.Status = DegradationStatus.Active;
             openEvent.ConsecutiveHealthyMeasurements = 0;
             openEvent.ConsecutiveUnhealthyMeasurements++;

@@ -29,6 +29,8 @@ internal sealed class RecordingResultRepository : ISpeedTestResultRepository
 
     public Task<SpeedTestResult?> FindLatestSuccessfulAsync(CancellationToken cancellationToken) =>
         Task.FromResult(Results.LastOrDefault(result => result.Success));
+    public Task<SpeedTestResult?> FindLatestSuccessfulBeforeAsync(DateTime toExclusive, CancellationToken cancellationToken) =>
+        Task.FromResult(Results.LastOrDefault(result => result.Success && result.Timestamp < toExclusive));
 
     public Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulSinceAsync(
         DateTime from,
@@ -36,6 +38,12 @@ internal sealed class RecordingResultRepository : ISpeedTestResultRepository
         CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<SpeedTestResult>>(
             Results.Where(result => result.Success && result.Timestamp >= from && result.Timestamp <= to).ToList());
+    public Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulBeforeAsync(
+        DateTime from,
+        DateTime toExclusive,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<SpeedTestResult>>(
+            Results.Where(result => result.Success && result.Timestamp >= from && result.Timestamp < toExclusive).ToList());
 
 
     public Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken cancellationToken)
@@ -63,6 +71,8 @@ internal sealed class RecordingAlertStateRepository : IAlertStateRepository
 
     public Task<DegradationEvent?> GetEventAsync(long id, CancellationToken cancellationToken) => Task.FromResult<DegradationEvent?>(null);
     public Task<IReadOnlyList<DegradationEvent>> GetRecentEventsAsync(int count, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DegradationEvent>>([]);
+    public Task<IReadOnlyList<DegradationEvent>> GetPendingNotificationEventsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DegradationEvent>>([]);
 
     public void AddRule(AlertRule rule) { }

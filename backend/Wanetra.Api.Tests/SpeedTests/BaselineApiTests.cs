@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Wanetra.Domain;
+using Wanetra.Application.Baselines;
+using Wanetra.Infrastructure.Persistence;
 
 namespace Wanetra.Api.Tests.SpeedTests;
 
@@ -25,6 +27,45 @@ public class BaselineApiTests
         Assert.Equal(120, baseline.Download.LatestMbps);
         Assert.False(baseline.Upload.Available);
         Assert.Null(baseline.Upload.PercentChange);
+    }
+
+    [Fact]
+    public async Task Measurement_baseline_excludes_the_measurement_at_its_cutoff_in_sqlite()
+    {
+        await using var factory = new WanetraApiFactory();
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
+        var timestamp = new DateTime(2026, 9, 21, 12, 0, 0, DateTimeKind.Utc);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<WanetraDbContext>();
+        database.SpeedTestResults.AddRange(
+            Enumerable.Range(1, 10).Select(index => new SpeedTestResult
+            {
+                Engine = "test",
+                Success = true,
+                Timestamp = timestamp.AddMinutes(-index),
+                DownloadMbps = index * 10,
+                UploadMbps = index,
+            }).Append(new SpeedTestResult
+            {
+                Engine = "test",
+                Success = true,
+                Timestamp = timestamp,
+                DownloadMbps = 1000,
+                UploadMbps = 1000,
+            }));
+        await database.SaveChangesAsync();
+
+        var service = scope.ServiceProvider.GetRequiredService<BaselineService>();
+        var baseline = await service.GetForMeasurementAsync(timestamp, CancellationToken.None);
+
+        Assert.Equal(10, baseline.Download.ValidSamples);
+        Assert.Equal(55, baseline.Download.BaselineMbps);
+        Assert.Equal(10, baseline.Download.LatestMbps);
+        Assert.Equal(10, baseline.Upload.ValidSamples);
+        Assert.Equal(5.5, baseline.Upload.BaselineMbps);
+        Assert.Equal(1, baseline.Upload.LatestMbps);
     }
 
     private sealed class BaselineApiFactory : WanetraApiFactory

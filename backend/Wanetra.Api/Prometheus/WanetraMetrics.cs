@@ -23,7 +23,7 @@ public sealed class WanetraMetrics : IPrometheusMetrics
         UploadMbps.Set(0);
         LatencyMs.Set(0);
         JitterMs.Set(0);
-        PacketLossPercent.Set(0);
+        PacketLossPercent.Set(double.NaN);
         SpeedTestSuccess.Set(0);
         SpeedTestDurationSeconds.Set(0);
         ConnectionDegraded.Set(0);
@@ -71,7 +71,7 @@ public sealed class WanetraMetrics : IPrometheusMetrics
         Set(UploadMbps, result.UploadMbps);
         Set(LatencyMs, result.LatencyMs);
         Set(JitterMs, result.JitterMs);
-        Set(PacketLossPercent, result.PacketLossPercent);
+        PacketLossPercent.Set(result.PacketLossPercent ?? double.NaN);
     }
 
     private static void SetLatestResult(SpeedTestResult result)

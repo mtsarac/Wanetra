@@ -3,7 +3,17 @@ using Wanetra.Domain;
 
 namespace Wanetra.Application.Alerts;
 
-public sealed record AlertEvaluationResult(bool Evaluated, bool Unhealthy, string Reason);
+public enum AlertMeasurementOutcome
+{
+    Healthy,
+    Unhealthy,
+    ExecutionFailure,
+}
+
+public sealed record AlertEvaluationResult(AlertMeasurementOutcome Outcome, string Reason)
+{
+    public bool Unhealthy => Outcome != AlertMeasurementOutcome.Healthy;
+}
 
 public static class AlertConditionEvaluator
 {
@@ -14,7 +24,7 @@ public static class AlertConditionEvaluator
     {
         if (!result.Success)
         {
-            return new AlertEvaluationResult(false, false, string.Empty);
+            return new AlertEvaluationResult(AlertMeasurementOutcome.ExecutionFailure, "speed test failed");
         }
 
         var reasons = new List<string>();
@@ -26,8 +36,11 @@ public static class AlertConditionEvaluator
         AddBaselineViolation(result.DownloadMbps, baseline.Download, rule.DownloadBaselineDropPercent, reasons, "download below baseline");
         AddBaselineViolation(result.UploadMbps, baseline.Upload, rule.UploadBaselineDropPercent, reasons, "upload below baseline");
 
-        return new AlertEvaluationResult(true, reasons.Count > 0, string.Join(", ", reasons));
+        return reasons.Count > 0
+            ? new AlertEvaluationResult(AlertMeasurementOutcome.Unhealthy, string.Join(", ", reasons))
+            : new AlertEvaluationResult(AlertMeasurementOutcome.Healthy, string.Empty);
     }
+
 
     private static void AddViolation(bool violation, List<string> reasons, string reason)
     {
