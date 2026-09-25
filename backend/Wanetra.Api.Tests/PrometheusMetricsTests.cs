@@ -16,5 +16,6 @@ public class PrometheusMetricsTests(WanetraApiFactory factory) : IClassFixture<W
         Assert.Contains("wanetra_speedtests_total", body);
         Assert.Contains("wanetra_speedtest_failures_total", body);
         Assert.Contains("wanetra_connection_degraded", body);
+        Assert.Contains("wanetra_packet_loss_percent NaN", body);
     }
 }

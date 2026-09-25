@@ -49,6 +49,29 @@ public class BaselineServiceTests
     }
 
     [Fact]
+    public async Task Measurement_baseline_excludes_results_at_the_measurement_timestamp()
+    {
+        var now = new DateTimeOffset(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
+        var repository = new RecordingResultRepository
+        {
+            Results = Enumerable.Range(1, 10)
+                .Select(index => Result(now.AddMinutes(-index), download: index * 10, upload: index))
+                .Append(Result(now, download: 10000, upload: 10000))
+                .ToList(),
+        };
+        var service = new BaselineService(repository, new FakeTimeProvider(now));
+
+        var baseline = await service.GetForMeasurementAsync(now.UtcDateTime, CancellationToken.None);
+
+        Assert.Equal(10, baseline.Download.ValidSamples);
+        Assert.Equal(55, baseline.Download.BaselineMbps);
+        Assert.Equal(100, baseline.Download.LatestMbps);
+        Assert.Equal(10, baseline.Upload.ValidSamples);
+        Assert.Equal(5.5, baseline.Upload.BaselineMbps);
+        Assert.Equal(10, baseline.Upload.LatestMbps);
+    }
+
+    [Fact]
     public async Task Leaves_metric_unavailable_until_it_has_ten_valid_samples()
     {
         var now = new DateTimeOffset(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);

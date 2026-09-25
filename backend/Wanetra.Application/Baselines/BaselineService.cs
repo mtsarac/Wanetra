@@ -22,12 +22,24 @@ public sealed class BaselineService(
     private const int MinimumSamples = 10;
     private static readonly TimeSpan Window = TimeSpan.FromDays(7);
 
-    public async Task<BaselineSnapshot> GetAsync(CancellationToken cancellationToken)
+    public Task<BaselineSnapshot> GetAsync(CancellationToken cancellationToken) =>
+        GetAsync(timeProvider.GetUtcNow().UtcDateTime, includeUpperBound: true, cancellationToken);
+
+    public Task<BaselineSnapshot> GetForMeasurementAsync(DateTime timestamp, CancellationToken cancellationToken) =>
+        GetAsync(timestamp, includeUpperBound: false, cancellationToken);
+
+    private async Task<BaselineSnapshot> GetAsync(
+        DateTime windowTo,
+        bool includeUpperBound,
+        CancellationToken cancellationToken)
     {
-        var windowTo = timeProvider.GetUtcNow().UtcDateTime;
         var windowFrom = windowTo - Window;
-        var results = await repository.FindSuccessfulSinceAsync(windowFrom, windowTo, cancellationToken);
-        var latest = await repository.FindLatestSuccessfulAsync(cancellationToken);
+        var results = includeUpperBound
+            ? await repository.FindSuccessfulSinceAsync(windowFrom, windowTo, cancellationToken)
+            : await repository.FindSuccessfulBeforeAsync(windowFrom, windowTo, cancellationToken);
+        var latest = includeUpperBound
+            ? await repository.FindLatestSuccessfulAsync(cancellationToken)
+            : await repository.FindLatestSuccessfulBeforeAsync(windowTo, cancellationToken);
 
         return new BaselineSnapshot(
             windowFrom,

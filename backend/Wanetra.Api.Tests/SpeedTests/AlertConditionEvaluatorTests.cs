@@ -30,14 +30,39 @@ public class AlertConditionEvaluatorTests
     }
 
     [Fact]
-    public void Failed_measurement_is_not_evaluated()
+    public void Failed_measurement_is_a_distinct_unhealthy_execution_failure()
     {
         var result = AlertConditionEvaluator.Evaluate(
             new AlertRule { Name = "rule", MinDownloadMbps = 100 },
             new SpeedTestResult { Engine = "test", Success = false, DownloadMbps = 1 },
             Baseline());
 
-        Assert.False(result.Evaluated);
+        Assert.Equal(AlertMeasurementOutcome.ExecutionFailure, result.Outcome);
+        Assert.True(result.Unhealthy);
+        Assert.Equal("speed test failed", result.Reason);
+    }
+
+    [Fact]
+    public void Unavailable_packet_loss_does_not_trigger_its_configured_threshold()
+    {
+        var result = AlertConditionEvaluator.Evaluate(
+            new AlertRule { Name = "rule", MaxPacketLossPercent = 5 },
+            new SpeedTestResult { Engine = "test", Success = true, PacketLossPercent = null },
+            Baseline());
+
+        Assert.Equal(AlertMeasurementOutcome.Healthy, result.Outcome);
+    }
+
+    [Fact]
+    public void Successful_measurement_without_violations_is_healthy()
+    {
+        var result = AlertConditionEvaluator.Evaluate(
+            new AlertRule { Name = "rule" },
+            new SpeedTestResult { Engine = "test", Success = true, DownloadMbps = 150 },
+            Baseline());
+
+        Assert.Equal(AlertMeasurementOutcome.Healthy, result.Outcome);
+        Assert.False(result.Unhealthy);
     }
 
     private static BaselineSnapshot Baseline(bool downloadAvailable = true) => new(

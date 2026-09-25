@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<BaselineService>();
         services.AddScoped<AlertEvaluationService>();
         services.AddScoped<NotificationDispatcher>();
+        services.AddHostedService<NotificationDeliveryWorker>();
         services.AddScoped<NotificationConfigurationService>();
         services.AddScoped<INotificationProvider, NtfyNotificationProvider>();
         services.AddScoped<INotificationProvider, WebhookNotificationProvider>();

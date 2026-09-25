@@ -9,57 +9,37 @@ public sealed class NotificationDispatcher(
     IEnumerable<INotificationProvider> providers,
     ILogger<NotificationDispatcher> logger)
 {
+    private static readonly SemaphoreSlim DispatchGate = new(1, 1);
+
+    public async Task DispatchPendingAsync(CancellationToken cancellationToken)
+    {
+        var pendingEvents = await alertRepository.GetPendingNotificationEventsAsync(cancellationToken);
+        foreach (var degradationEvent in pendingEvents)
+        {
+            if (!degradationEvent.NotificationSent)
+            {
+                await DispatchAsync(NotificationTrigger.Opened, degradationEvent.Id, cancellationToken);
+            }
+
+            if (degradationEvent.Status == DegradationStatus.Recovered
+                && degradationEvent.NotificationSent
+                && !degradationEvent.RecoveryNotificationSent)
+            {
+                await DispatchAsync(NotificationTrigger.Recovered, degradationEvent.Id, cancellationToken);
+            }
+        }
+    }
+
     public async Task DispatchAsync(NotificationTrigger trigger, long degradationEventId, CancellationToken cancellationToken)
     {
-        var configurations = (await configurationRepository.ListAsync(cancellationToken))
-            .Where(configuration => configuration.Enabled)
-            .OrderBy(configuration => configuration.Id)
-            .ToList();
-        if (configurations.Count == 0)
+        await DispatchGate.WaitAsync(cancellationToken);
+        try
         {
-            return;
+            await DispatchCoreAsync(trigger, degradationEventId, cancellationToken);
         }
-
-        var degradationEvent = await alertRepository.GetEventAsync(degradationEventId, cancellationToken);
-        if (degradationEvent is null)
+        finally
         {
-            logger.LogError("Notification skipped: degradation event {EventId} not found", degradationEventId);
-            return;
-        }
-
-        if (AlreadySent(trigger, degradationEvent))
-        {
-            return;
-        }
-
-        var message = NotificationMessageBuilder.Build(trigger, degradationEvent);
-        var providersByName = providers.ToDictionary(provider => provider.Name, StringComparer.OrdinalIgnoreCase);
-        var attempted = false;
-
-        foreach (var configuration in configurations)
-        {
-            if (!providersByName.TryGetValue(configuration.Provider, out var provider))
-            {
-                logger.LogWarning("Unknown notification provider {Provider} (id {Id}); skipping", configuration.Provider, configuration.Id);
-                continue;
-            }
-
-            attempted = true;
-            try
-            {
-                await provider.SendAsync(message, configuration.ConfigurationJson, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                // Preserve the degradation event; one bad provider must not crash the run or block others.
-                logger.LogError(ex, "Notification via {Provider} failed for event {EventId}", configuration.Provider, degradationEventId);
-            }
-        }
-
-        if (attempted)
-        {
-            MarkSent(trigger, degradationEvent);
-            await alertRepository.SaveChangesAsync(cancellationToken);
+            DispatchGate.Release();
         }
     }
 
@@ -73,6 +53,70 @@ public sealed class NotificationDispatcher(
         }
 
         await provider.SendAsync(NotificationMessageBuilder.Test(provider.Name), configurationJson, cancellationToken);
+    }
+
+    private async Task DispatchCoreAsync(
+        NotificationTrigger trigger,
+        long degradationEventId,
+        CancellationToken cancellationToken)
+    {
+        var degradationEvent = await alertRepository.GetEventAsync(degradationEventId, cancellationToken);
+        if (degradationEvent is null)
+        {
+            logger.LogError("Notification skipped: degradation event {EventId} not found", degradationEventId);
+            return;
+        }
+
+        if (AlreadySent(trigger, degradationEvent))
+        {
+            return;
+        }
+
+        var configurations = (await configurationRepository.ListAsync(cancellationToken))
+            .Where(configuration => configuration.Enabled)
+            .OrderBy(configuration => configuration.Id)
+            .ToList();
+        if (configurations.Count == 0)
+        {
+            return;
+        }
+
+        var message = NotificationMessageBuilder.Build(trigger, degradationEvent);
+        var providersByName = providers.ToDictionary(provider => provider.Name, StringComparer.OrdinalIgnoreCase);
+        var delivered = false;
+
+        foreach (var configuration in configurations)
+        {
+            if (!providersByName.TryGetValue(configuration.Provider, out var provider))
+            {
+                logger.LogWarning("Unknown notification provider {Provider} (id {Id}); skipping", configuration.Provider, configuration.Id);
+                continue;
+            }
+
+            try
+            {
+                await provider.SendAsync(message, configuration.ConfigurationJson, cancellationToken);
+                delivered = true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(
+                    "Notification via {Provider} failed for event {EventId} ({FailureType})",
+                    configuration.Provider,
+                    degradationEventId,
+                    exception.GetType().Name);
+            }
+        }
+
+        if (delivered)
+        {
+            MarkSent(trigger, degradationEvent);
+            await alertRepository.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private static bool AlreadySent(NotificationTrigger trigger, DegradationEvent degradationEvent) =>

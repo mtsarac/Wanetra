@@ -11,9 +11,16 @@ public interface ISpeedTestResultRepository
 
     Task<SpeedTestResult?> FindLatestSuccessfulAsync(CancellationToken cancellationToken);
 
+    Task<SpeedTestResult?> FindLatestSuccessfulBeforeAsync(DateTime toExclusive, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulSinceAsync(
         DateTime from,
         DateTime to,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulBeforeAsync(
+        DateTime from,
+        DateTime toExclusive,
         CancellationToken cancellationToken);
 
     /// <summary>Deletes results strictly older than the UTC cutoff and returns the number removed.</summary>

@@ -30,6 +30,13 @@ internal sealed class SpeedTestResultRepository(WanetraDbContext dbContext) : IS
             .OrderByDescending(result => result.Timestamp)
             .ThenByDescending(result => result.Id)
             .FirstOrDefaultAsync(cancellationToken);
+    public Task<SpeedTestResult?> FindLatestSuccessfulBeforeAsync(DateTime toExclusive, CancellationToken cancellationToken) =>
+        dbContext.SpeedTestResults
+            .AsNoTracking()
+            .Where(result => result.Success && result.Timestamp < toExclusive)
+            .OrderByDescending(result => result.Timestamp)
+            .ThenByDescending(result => result.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulSinceAsync(
         DateTime from,
@@ -38,6 +45,16 @@ internal sealed class SpeedTestResultRepository(WanetraDbContext dbContext) : IS
         await dbContext.SpeedTestResults
             .AsNoTracking()
             .Where(result => result.Success && result.Timestamp >= from && result.Timestamp <= to)
+            .OrderBy(result => result.Timestamp)
+            .ThenBy(result => result.Id)
+            .ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<SpeedTestResult>> FindSuccessfulBeforeAsync(
+        DateTime from,
+        DateTime toExclusive,
+        CancellationToken cancellationToken) =>
+        await dbContext.SpeedTestResults
+            .AsNoTracking()
+            .Where(result => result.Success && result.Timestamp >= from && result.Timestamp < toExclusive)
             .OrderBy(result => result.Timestamp)
             .ThenBy(result => result.Id)
             .ToListAsync(cancellationToken);
