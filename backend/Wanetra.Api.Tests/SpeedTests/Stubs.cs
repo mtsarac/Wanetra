@@ -37,6 +37,12 @@ internal sealed class RecordingResultRepository : ISpeedTestResultRepository
         Task.FromResult<IReadOnlyList<SpeedTestResult>>(
             Results.Where(result => result.Success && result.Timestamp >= from && result.Timestamp <= to).ToList());
 
+
+    public Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken cancellationToken)
+    {
+        var deleted = Results.RemoveAll(result => result.Timestamp < cutoff);
+        return Task.FromResult(deleted);
+    }
     public Task<SpeedTestResultPage> QueryAsync(
         SpeedTestResultQuery query,
         CancellationToken cancellationToken) =>
@@ -49,11 +55,17 @@ internal sealed class RecordingAlertStateRepository : IAlertStateRepository
 
     public Task<AlertRule?> GetEnabledRuleAsync(CancellationToken cancellationToken) => Task.FromResult<AlertRule?>(null);
 
+    public Task<AlertRule?> GetRuleAsync(CancellationToken cancellationToken) => Task.FromResult<AlertRule?>(null);
+
     public Task<AlertState> GetStateAsync(CancellationToken cancellationToken) => Task.FromResult(state);
 
     public Task<DegradationEvent?> GetOpenEventAsync(CancellationToken cancellationToken) => Task.FromResult<DegradationEvent?>(null);
 
     public Task<DegradationEvent?> GetEventAsync(long id, CancellationToken cancellationToken) => Task.FromResult<DegradationEvent?>(null);
+    public Task<IReadOnlyList<DegradationEvent>> GetRecentEventsAsync(int count, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DegradationEvent>>([]);
+
+    public void AddRule(AlertRule rule) { }
 
     public void AddEvent(DegradationEvent degradationEvent) { }
 

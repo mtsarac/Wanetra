@@ -1345,7 +1345,7 @@ Provide:
 ```yaml
 services:
   wanetra:
-    image: ghcr.io/USERNAME/wanetra:latest
+    build: .
     container_name: wanetra
     restart: unless-stopped
     ports:
@@ -1354,8 +1354,14 @@ services:
       - TZ=Europe/Istanbul
       - WANETRA_DATA_PATH=/data
     volumes:
-      - ./data:/data
+      - wanetra-data:/data
+
+volumes:
+  wanetra-data:
 ```
+Build locally using the Docker builder's default platform. Keep architecture
+detection in the Dockerfile so the matching LibreSpeed binary is included.
+
 
 Keep the default deployment simple.
 

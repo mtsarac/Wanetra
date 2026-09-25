@@ -131,7 +131,7 @@ Target deployment:
 ```yaml
 services:
   wanetra:
-    image: ghcr.io/mtsarac/wanetra:latest
+    build: .
     container_name: wanetra
     restart: unless-stopped
     ports:

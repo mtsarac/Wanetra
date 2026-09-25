@@ -42,6 +42,11 @@ internal sealed class SpeedTestResultRepository(WanetraDbContext dbContext) : IS
             .ThenBy(result => result.Id)
             .ToListAsync(cancellationToken);
 
+    public Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken cancellationToken) =>
+        dbContext.SpeedTestResults
+            .Where(result => result.Timestamp < cutoff)
+            .ExecuteDeleteAsync(cancellationToken);
+
     public async Task<SpeedTestResultPage> QueryAsync(
         SpeedTestResultQuery query,
         CancellationToken cancellationToken)

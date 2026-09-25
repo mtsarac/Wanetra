@@ -14,18 +14,25 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 
 - ASP.NET Core health endpoints: `/health`, `/health/live`, `/health/ready`
 - SQLite storage with EF Core migrations applied at startup
-- Speed test API: manual runs, execution status, latest result, filtered history
-- Scheduled speed tests: cron expression plus timezone, run by a background worker
-- React application shell
-- Container build foundation
+- LibreSpeed speed tests with single-run concurrency and paged history
+- Cron scheduling with timezone-aware next-run previews
+- React dashboard with current metrics, history charts, and rolling baselines
+- Persistent degradation detection with ntfy and generic webhook notifications
+- Prometheus metrics at `/metrics`
+- Configurable daily speed-test retention (365 days by default)
+- Single-container Docker image with persistent `/data`
 
-## Planned capabilities
+## Configuration
 
-- LibreSpeed-compatible test engines
-- Historical metrics and dashboard charts
-- Baseline-based degradation detection and alerts
-- ntfy and generic webhook notifications
-- Prometheus metrics
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `WANETRA_DATA_PATH` | `/data` | Database and application data directory |
+| `WANETRA_PORT` | `8080` | Host port in the example Compose file |
+| `DataRetention__Days` | `365` | Days of speed-test history to retain |
+| `TZ` | `Europe/Istanbul` | Container timezone |
+
+Retention cleanup runs at startup and then every 24 hours. Results exactly on
+the cutoff remain; only older results are deleted.
 
 ## API
 
@@ -39,6 +46,14 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 | `GET` | `/api/schedule` | Current schedule plus the next 5 runs. |
 | `PUT` | `/api/schedule` | Save `{enabled, cronExpression, timezone}`. Bad cron or timezone answers `400`. |
 | `GET` | `/api/schedule/next-runs?count=` | Upcoming runs in UTC (`count` 1 to 100, default 5). Empty when the schedule is off. |
+| `GET` | `/api/baseline` | Seven-day rolling download and upload baselines. |
+| `GET` | `/api/alerts/active` | Current persisted degradation event (`404` when none is open). |
+| `GET` | `/api/alerts/events?count=` | Recent degradation events (1–100, default 20). |
+| `GET`/`PUT` | `/api/alerts/rule` | Read or save the single alert rule and transition counts. |
+| `GET`/`PUT` | `/api/notifications` | Read or save ntfy and generic webhook configuration. |
+| `POST` | `/api/notifications/test` | Send a test notification to a saved or draft provider. |
+| `GET` | `/api/settings/retention` | Read the configured measurement retention period. |
+| `GET` | `/metrics` | Prometheus scrape endpoint. |
 
 A run outlives the HTTP request that starts it, so poll `/api/speedtests/status`
 instead of waiting on the response.
@@ -47,6 +62,10 @@ The schedule ships disabled with `*/30 * * * *` in `Europe/Istanbul`.
 Saving wakes the worker right away, so there's no need to restart.
 All `nextRuns` timestamps are UTC. A run whose time has already passed is
 skipped, it's never caught up.
+
+Fresh installs start with an enabled 30% download-baseline alert. The baseline
+needs ten valid samples; three consecutive unhealthy successful tests open an
+incident, and two recovery tests close it. Configure notifications separately.
 
 History query parameters: `from` and `to` (ISO-8601, UTC), `success`, `engine`,
 `sort` (`asc` or `desc`, default `desc`), `page` (default 1), and `pageSize`
@@ -78,15 +97,21 @@ bun run dev
 
 ## Docker
 
-Build and run the bootstrap image:
+Build and run the application locally with Docker Compose:
 
-```fish
-docker build -t wanetra:dev .
-docker run --rm -p 8080:8080 -v (pwd)/data:/data wanetra:dev
+```sh
+cp compose.example.yml compose.yml
+docker compose up -d --build
 ```
 
-The database is created at `$WANETRA_DATA_PATH/wanetra.db` (`/data/wanetra.db` in the
-container). Mount that directory to keep measurement history between restarts.
+Compose builds the image for the local Docker builder's platform; the Dockerfile
+selects the matching LibreSpeed binary for that architecture. No prebuilt Wanetra
+image is required.
+
+The database lives in the Docker-managed `wanetra-data` volume mounted at
+`$WANETRA_DATA_PATH` (`/data` by default). Docker initializes the volume with
+the application's non-root ownership. Set `DataRetention__Days` in `.env` to
+change the 365-day default.
 
 ## Project documentation
 

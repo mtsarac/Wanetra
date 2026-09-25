@@ -83,15 +83,11 @@ public class AlertEvaluationServiceTests
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WanetraDbContext>();
-        db.AlertRules.Add(new AlertRule
-        {
-            Name = "default",
-            MinDownloadMbps = 100,
-            ConsecutiveFailuresRequired = failures,
-            ConsecutiveRecoveriesRequired = recoveries,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        });
+        var rule = await db.AlertRules.SingleAsync();
+        rule.Name = "default";
+        rule.MinDownloadMbps = 100;
+        rule.ConsecutiveFailuresRequired = failures;
+        rule.ConsecutiveRecoveriesRequired = recoveries;
         await db.SaveChangesAsync();
     }
 

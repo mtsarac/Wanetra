@@ -17,16 +17,12 @@ public class SpeedTestPersistenceTests
         using (var setupScope = factory.Services.CreateScope())
         {
             var db = setupScope.ServiceProvider.GetRequiredService<WanetraDbContext>();
-            db.AlertRules.Add(new AlertRule
-            {
-                Name = "default",
-                Enabled = true,
-                MinDownloadMbps = 100,
-                ConsecutiveFailuresRequired = 1,
-                ConsecutiveRecoveriesRequired = 1,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-            });
+            var rule = await db.AlertRules.SingleAsync();
+            rule.Name = "default";
+            rule.Enabled = true;
+            rule.MinDownloadMbps = 100;
+            rule.ConsecutiveFailuresRequired = 1;
+            rule.ConsecutiveRecoveriesRequired = 1;
             await db.SaveChangesAsync();
         }
 
