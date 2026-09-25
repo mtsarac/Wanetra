@@ -50,6 +50,29 @@ All notable changes to Wanetra will be documented here.
   incident list alongside threshold configuration.
 - Fresh databases seed the documented 30% download-baseline degradation rule,
   so alert reads and evaluations work before the user edits settings.
+- A notification retry worker replays persisted degradation and recovery
+  notifications that have no successful delivery; persisted event flags prevent
+  further attempts after successful delivery is recorded. No database schema
+  changes.
+- Frontend regression tests cover paginated history, settings, notification
+  secret preservation, dashboard run state, and API errors.
+
+### Changed
+
+- Every persisted speed-test execution failure participates in the alert
+  unhealthy/recovery state machine; caller cancellation remains unpersisted.
+- Seven-day alert baselines exclude the measurement currently being evaluated.
+- Dashboard charts load all pages in the selected range, independently from the
+  six most recent readings.
+- LibreSpeed's unavailable packet-loss measurement is exposed as unavailable
+  instead of a zero-valued Prometheus gauge; its alert threshold is disabled in
+  the UI.
+- Notification destination URLs are restricted to valid HTTP(S) URLs, while
+  private addresses remain available for self-hosted providers.
+- Example Compose port publishing now binds to loopback unless explicitly
+  configured otherwise. Wanetra has no built-in authentication; see README
+  security guidance before allowing network access.
+
 
 ### Fixed
 

@@ -4,7 +4,7 @@ services:
     container_name: wanetra
     restart: unless-stopped
     ports:
-      - "${WANETRA_PORT:-8080}:8080"
+      - "${WANETRA_BIND_ADDRESS:-127.0.0.1}:${WANETRA_PORT:-8080}:8080"
     environment:
       TZ: ${TZ:-Europe/Istanbul}
       WANETRA_DATA_PATH: ${WANETRA_DATA_PATH:-/data}

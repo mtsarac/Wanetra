@@ -28,11 +28,25 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 | --- | --- | --- |
 | `WANETRA_DATA_PATH` | `/data` | Database and application data directory |
 | `WANETRA_PORT` | `8080` | Host port in the example Compose file |
+| `WANETRA_BIND_ADDRESS` | `127.0.0.1` | Host interface published by the example Compose file |
 | `DataRetention__Days` | `365` | Days of speed-test history to retain |
 | `TZ` | `Europe/Istanbul` | Container timezone |
 
 Retention cleanup runs at startup and then every 24 hours. Results exactly on
 the cutoff remain; only older results are deleted.
+
+## Security
+
+Wanetra has no application-level or multi-user authentication. The Compose
+example binds to loopback by default. For trusted LAN access, set
+`WANETRA_BIND_ADDRESS` to the host's LAN address (or deliberately to `0.0.0.0`
+to bind every interface) and restrict access with the host firewall. Do not
+expose Wanetra directly to the public internet; use authentication at a
+reverse proxy if remote access is required.
+
+The SQLite database under `/data` contains notification configuration JSON,
+including ntfy tokens/passwords and webhook headers, without application-level
+encryption. Restrict access to the volume and protect its backups as secrets.
 
 ## API
 
@@ -64,8 +78,16 @@ All `nextRuns` timestamps are UTC. A run whose time has already passed is
 skipped, it's never caught up.
 
 Fresh installs start with an enabled 30% download-baseline alert. The baseline
-needs ten valid samples; three consecutive unhealthy successful tests open an
-incident, and two recovery tests close it. Configure notifications separately.
+uses ten successful historical samples from before the current measurement;
+three consecutive unhealthy measurements (including speed-test execution
+failures) open an incident, and two healthy measurements recover it. A cancelled
+run does not count. Configure notifications separately. Pending delivery retries
+automatically once per minute; the event is marked sent after at least one
+enabled provider accepts the notification.
+
+LibreSpeed CLI does not report packet loss. The metric remains unavailable
+(Prometheus reports `NaN`); packet-loss conditions cannot trigger alerts, and
+the corresponding alert control is disabled in the UI.
 
 History query parameters: `from` and `to` (ISO-8601, UTC), `success`, `engine`,
 `sort` (`asc` or `desc`, default `desc`), `page` (default 1), and `pageSize`
@@ -91,6 +113,7 @@ dotnet test backend/Wanetra.slnx
 cd frontend
 bun install --frozen-lockfile
 bun run lint
+bun run test
 bun run build
 bun run dev
 ```
