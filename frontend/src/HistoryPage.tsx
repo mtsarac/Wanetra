@@ -62,8 +62,8 @@ export default function HistoryPage() {
   }
 
   return (
-    <main className="page-content">
-      <header className="page-title"><div><p className="kicker">MEASUREMENTS / ARCHIVE</p><h1>History</h1></div><span className="muted">{query.data ? `${query.data.totalCount} results` : 'Filtering saved tests'}</span></header>
+    <main id="main-content" className="page-content">
+      <header className="page-title"><div><p className="kicker">Measurement archive</p><h1>History</h1></div><span className="muted">{query.data ? `${query.data.totalCount} results` : 'Filtering saved tests'}</span></header>
       <section className="panel history-panel">
         <div className="filter-bar">
           <label><span>From</span><input type="date" value={from} max={to || undefined} onChange={(event) => updateFilter(() => setFrom(event.target.value))} /></label>

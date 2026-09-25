@@ -32,13 +32,13 @@ function Chart({ results }: { results: SpeedTestResult[] }) {
   const option = useMemo<EChartsOption>(() => ({
     animation: false,
     tooltip: { trigger: 'axis' },
-    legend: { bottom: 0, textStyle: { color: '#8fa3b8' } },
+    legend: { bottom: 0, textStyle: { color: '#a1b6bb' } },
     grid: { left: 45, right: 20, top: 18, bottom: 42 },
-    xAxis: { type: 'time', axisLabel: { color: '#8fa3b8' }, axisLine: { lineStyle: { color: '#24364a' } } },
-    yAxis: { type: 'value', axisLabel: { color: '#8fa3b8' }, splitLine: { lineStyle: { color: '#1b2b3b' } } },
+    xAxis: { type: 'time', axisLabel: { color: '#a1b6bb' }, axisLine: { lineStyle: { color: '#29444c' } } },
+    yAxis: { type: 'value', axisLabel: { color: '#a1b6bb' }, splitLine: { lineStyle: { color: '#29444c' } } },
     series: [
-      { name: 'Download', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#88d7ff' }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
-      { name: 'Upload', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#a3e635' }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
+      { name: 'Download', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#83ddc8' }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
+      { name: 'Upload', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#83badb' }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
     ],
   }), [results])
 
@@ -61,17 +61,17 @@ function QualityChart({ results }: { results: SpeedTestResult[] }) {
     return {
       animation: false,
       tooltip: { trigger: 'axis' },
-      legend: { bottom: 0, textStyle: { color: '#8fa3b8' } },
+      legend: { bottom: 0, textStyle: { color: '#a1b6bb' } },
       grid: { left: 48, right: 54, top: 18, bottom: 42 },
-      xAxis: { type: 'time', axisLabel: { color: '#8fa3b8' }, axisLine: { lineStyle: { color: '#24364a' } } },
+      xAxis: { type: 'time', axisLabel: { color: '#a1b6bb' }, axisLine: { lineStyle: { color: '#29444c' } } },
       yAxis: [
-        { type: 'value', name: 'ms', axisLabel: { color: '#8fa3b8' }, splitLine: { lineStyle: { color: '#1b2b3b' } } },
-        { type: 'value', name: '%', position: 'right', axisLabel: { color: '#8fa3b8' }, splitLine: { show: false } },
+        { type: 'value', name: 'ms', axisLabel: { color: '#a1b6bb' }, splitLine: { lineStyle: { color: '#29444c' } } },
+        { type: 'value', name: '%', position: 'right', axisLabel: { color: '#a1b6bb' }, splitLine: { show: false } },
       ],
       series: [
-        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#fbbf24' }, data: chronological.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
-        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#c4b5fd' }, data: chronological.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
-        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, yAxisIndex: 1, itemStyle: { color: '#fb7185' }, data: chronological.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
+        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#f0bf75' }, data: chronological.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
+        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#c7bce2' }, data: chronological.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
+        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, yAxisIndex: 1, itemStyle: { color: '#f0a69c' }, data: chronological.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
       ],
     }
   }, [results])
@@ -147,13 +147,13 @@ function App() {
   const baselineUnavailable: MetricBaseline = { available: false, validSamples: 0, baselineMbps: null, latestMbps: null, percentChange: null }
 
   return (
-    <main className="page-content dashboard-page">
+    <main id="main-content" className="page-content dashboard-page">
       <header className="page-title">
-        <div><p className="kicker">WANETRA / OPERATIONS</p><h1>Network pulse</h1></div>
-        <div className="status-chip"><i className={status.data?.state === 'running' ? 'pulse' : ''} /> {status.data?.state ?? 'loading'}</div>
+        <div><p className="kicker">Connection overview</p><h1>Network pulse</h1></div>
+        <div className="status-chip"><i className={status.data?.state === 'running' ? 'pulse' : ''} /> Test {status.data?.state ?? 'loading'}</div>
       </header>
       {error && <div className="error" role="alert">{error instanceof Error ? error.message : 'Could not load dashboard data.'}</div>}
-      {activeAlert.data && <section className="active-alert" aria-live="polite"><div><p className="kicker">ACTIVE DEGRADATION</p><strong>{activeAlert.data.reason}</strong><small>{activeAlert.data.notificationDeliveries.length ? activeAlert.data.notificationDeliveries.map((delivery) => `${delivery.provider}: ${delivery.status}`).join(' · ') : 'No provider notifications configured'}</small></div><div><span>{activeAlert.data.status}</span><small>Since {formatTime(activeAlert.data.startedAt)}</small></div></section>}
+      {activeAlert.data && <section className="active-alert" aria-live="polite"><div><p className="kicker">Active degradation</p><strong>{activeAlert.data.reason}</strong><small>{activeAlert.data.notificationDeliveries.length ? activeAlert.data.notificationDeliveries.map((delivery) => `${delivery.provider}: ${delivery.status}`).join(' · ') : 'No provider notifications configured'}</small></div><div><span>{activeAlert.data.status}</span><small>Since {formatTime(activeAlert.data.startedAt)}</small></div></section>}
       <section className="metrics">
         <Metric label="Download" value={formatNumber(latest.data?.downloadMbps, 'Mbps')} tone="blue" />
         <Metric label="Upload" value={formatNumber(latest.data?.uploadMbps, 'Mbps')} tone="green" />
@@ -163,7 +163,7 @@ function App() {
         <div className="action-metric"><span>Last test · {formatTime(latest.data?.timestamp)}</span><button disabled={status.data?.state === 'running' || run.isPending} onClick={() => run.mutate()}>{run.isPending || status.data?.state === 'running' ? 'Running…' : 'Run speed test'}</button></div>
       </section>
       <section className="panel baseline">
-        <div className="panel-head"><div><p className="kicker">BASELINE / 7 DAYS</p><h2>Current vs baseline</h2></div><span className="muted">{baseline.isLoading ? 'Loading…' : 'Successful measurements only'}</span></div>
+        <div className="panel-head"><div><p className="kicker">Seven-day baseline</p><h2>Current vs baseline</h2></div><span className="muted">{baseline.isLoading ? 'Loading…' : 'Successful measurements only'}</span></div>
         <div className="baseline-grid">
           <BaselineMetric label="Download" metric={baseline.data?.download ?? baselineUnavailable} />
           <BaselineMetric label="Upload" metric={baseline.data?.upload ?? baselineUnavailable} />
@@ -172,24 +172,24 @@ function App() {
       <section className="workspace">
         <div className="panel chart-panel">
           <div className="panel-head">
-            <div><p className="kicker">THROUGHPUT</p><h2>Speed history</h2></div>
+            <div><p className="kicker">Throughput</p><h2>Speed history</h2></div>
             <div className="range-tabs">{([...Object.keys(ranges), 'Custom'] as Range[]).map((item) => <button className={range === item ? 'selected' : ''} key={item} onClick={() => setRange(item)}>{item}</button>)}</div>
           </div>
           {range === 'Custom' && <div className="chart-dates"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
           {history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <Chart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}
         </div>
         <aside className="panel schedule">
-          <p className="kicker">SCHEDULE</p>
+          <p className="kicker">Schedule</p>
           <div className="schedule-state"><i className={schedule.data?.enabled ? 'on' : ''} /> {schedule.data?.enabled ? 'Enabled' : 'Disabled'}</div>
           <dl><dt>Expression</dt><dd>{schedule.data?.cronExpression ?? '—'}</dd><dt>Timezone</dt><dd>{schedule.data?.timezone ?? '—'}</dd><dt>Next run</dt><dd>{formatTime(schedule.data?.nextRuns[0])}</dd></dl>
         </aside>
       </section>
       <section className="panel quality-panel">
-        <div className="panel-head"><div><p className="kicker">CONNECTION QUALITY</p><h2>Latency and jitter</h2></div><span className="muted">{history.data?.length ?? 0} measurements in selected range · packet loss unavailable with LibreSpeed</span></div>
+        <div className="panel-head"><div><p className="kicker">Connection quality</p><h2>Latency and jitter</h2></div><span className="muted">{history.data?.length ?? 0} measurements in selected range · packet loss unavailable with LibreSpeed</span></div>
         {history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <QualityChart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}
       </section>
       <section className="panel recent">
-        <div className="panel-head"><div><p className="kicker">RECENT MEASUREMENTS</p><h2>Latest readings</h2></div><span className="muted">{latest.data ? `Updated ${formatTime(latest.data.timestamp)}` : '—'}</span></div>
+        <div className="panel-head"><div><p className="kicker">Recent measurements</p><h2>Latest readings</h2></div><span className="muted">{latest.data ? `Updated ${formatTime(latest.data.timestamp)}` : '—'}</span></div>
         {recent.isLoading ? <div className="empty">Loading recent measurements…</div> : recent.data?.items.length ? <div className="table-wrap"><table><thead><tr><th>Time</th><th>Download</th><th>Upload</th><th>Latency</th><th>Jitter</th><th>Result</th></tr></thead><tbody>{recent.data.items.map((item) => <tr key={item.id}><td>{formatTime(item.timestamp)}</td><td>{formatNumber(item.downloadMbps, 'Mbps')}</td><td>{formatNumber(item.uploadMbps, 'Mbps')}</td><td>{formatNumber(item.latencyMs, 'ms')}</td><td>{formatNumber(item.jitterMs, 'ms')}</td><td className={item.success ? 'success' : 'failure'}>{item.success ? 'Success' : 'Failed'}</td></tr>)}</tbody></table></div> : <div className="empty">No tests have been recorded yet.</div>}
       </section>
     </main>

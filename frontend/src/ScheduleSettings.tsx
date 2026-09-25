@@ -37,7 +37,7 @@ export default function ScheduleSettings() {
 
   return (
     <section className="panel settings-panel">
-      <div className="panel-head"><div><p className="kicker">SETTINGS / SCHEDULE</p><h2>Automatic speed tests</h2></div><span className="muted">Cron uses the selected IANA timezone</span></div>
+      <div className="panel-head"><div><p className="kicker">Schedule</p><h2>Automatic speed tests</h2></div><span className="muted">Cron uses the selected IANA timezone</span></div>
       {schedule.isLoading ? <div className="empty">Loading schedule…</div> : (
         <form onSubmit={submit}>
           <label className="setting-check"><input type="checkbox" checked={values.enabled} onChange={(event) => setDraft({ ...values, enabled: event.target.checked })} /> Enable scheduled tests</label>

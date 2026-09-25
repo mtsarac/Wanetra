@@ -93,10 +93,10 @@ export default function AlertSettings() {
   }
 
   return (
-    <main className="page-content">
-      <header className="page-title"><div><p className="kicker">WANETRA / CONNECTION HEALTH</p><h1>Alerts</h1></div><span className="muted">Thresholds and incident history</span></header>
+    <main id="main-content" className="page-content">
+      <header className="page-title"><div><p className="kicker">Connection health</p><h1>Alerts</h1></div><span className="muted">Thresholds and incident history</span></header>
       <section className="panel settings-panel">
-        <div className="panel-head"><div><p className="kicker">ALERTS / THRESHOLDS</p><h2>Degradation rule</h2></div><span className="muted">Supported conditions can trigger an incident</span></div>
+        <div className="panel-head"><div><p className="kicker">Thresholds</p><h2>Degradation rule</h2></div><span className="muted">Supported conditions can trigger an incident</span></div>
         {rule.isLoading ? <div className="empty">Loading alert rule…</div> : (
           <form onSubmit={submit}>
             <label className="setting-check"><input type="checkbox" checked={values.enabled} onChange={(event) => setDraft({ ...values, enabled: event.target.checked })} /> Enable alert evaluation</label>
@@ -127,7 +127,7 @@ export default function AlertSettings() {
         {rule.error && <div className="error" role="alert">{rule.error.message}</div>}
       </section>
       <section className="panel event-history">
-        <div className="panel-head"><div><p className="kicker">INCIDENTS / LAST 20</p><h2>Degradation events</h2></div><span className="muted">Persisted event history</span></div>
+        <div className="panel-head"><div><p className="kicker">Last 20 incidents</p><h2>Degradation events</h2></div><span className="muted">Persisted event history</span></div>
         {events.error && <div className="error" role="alert">{events.error.message}</div>}
         {events.isLoading ? <div className="empty">Loading incidents…</div> : events.data?.length ? (
           <div className="event-list">

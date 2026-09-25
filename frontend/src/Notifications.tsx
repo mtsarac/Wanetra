@@ -101,9 +101,11 @@ export default function NotificationsPanel() {
   })
 
   return (
-    <section className="panel notifications">
+    <main id="main-content" className="page-content">
+      <header className="page-title"><div><p className="kicker">Delivery channels</p><h1>Notifications</h1></div><span className="muted">Choose where incident updates go</span></header>
+      <section className="panel notifications">
       <div className="panel-head">
-        <div><p className="kicker">NOTIFICATIONS</p><h2>Degradation + recovery alerts</h2></div>
+        <div><p className="kicker">Incident delivery</p><h2>Degradation and recovery alerts</h2></div>
         <span className="muted">Blank fields keep stored secrets</span>
       </div>
       {message && <div className="notice" role="status">{message}</div>}
@@ -136,6 +138,7 @@ export default function NotificationsPanel() {
         </div>
       </div>
       <button className="save" disabled={save.isPending} onClick={() => { save.mutate() }}>{save.isPending ? 'Saving…' : 'Save notifications'}</button>
-    </section>
+      </section>
+    </main>
   )
 }

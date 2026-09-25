@@ -59,6 +59,10 @@ All notable changes to Wanetra will be documented here.
 
 ### Changed
 
+- Refreshed the monitoring interface with a responsive signal-focused dashboard,
+  updated chart colors, consistent form surfaces, keyboard navigation, and a
+  matching application icon.
+
 - Failed speed tests now expose a failure kind. Only network failures and
   unusable measurements affect degradation state; local CLI/process failures and
   caller cancellation do not count as WAN degradation.
