@@ -31,29 +31,36 @@ internal sealed class AlertStateRepository(WanetraDbContext dbContext) : IAlertS
 
     public Task<DegradationEvent?> GetOpenEventAsync(CancellationToken cancellationToken) =>
         dbContext.DegradationEvents
+            .Include(degradationEvent => degradationEvent.NotificationDeliveries)
             .Where(degradationEvent => degradationEvent.Status == DegradationStatus.Active
                 || degradationEvent.Status == DegradationStatus.Recovering)
             .OrderBy(degradationEvent => degradationEvent.StartedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task<DegradationEvent?> GetEventAsync(long id, CancellationToken cancellationToken) =>
-        dbContext.DegradationEvents.SingleOrDefaultAsync(degradationEvent => degradationEvent.Id == id, cancellationToken);
+        dbContext.DegradationEvents
+            .Include(degradationEvent => degradationEvent.NotificationDeliveries)
+            .SingleOrDefaultAsync(degradationEvent => degradationEvent.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<DegradationEvent>> GetRecentEventsAsync(int count, CancellationToken cancellationToken) =>
         await dbContext.DegradationEvents
             .AsNoTracking()
+            .Include(degradationEvent => degradationEvent.NotificationDeliveries)
             .OrderByDescending(degradationEvent => degradationEvent.StartedAt)
             .ThenByDescending(degradationEvent => degradationEvent.Id)
             .Take(count)
             .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<DegradationEvent>> GetPendingNotificationEventsAsync(CancellationToken cancellationToken) =>
         await dbContext.DegradationEvents
-            .Where(degradationEvent => !degradationEvent.NotificationSent
-                || (degradationEvent.Status == DegradationStatus.Recovered && !degradationEvent.RecoveryNotificationSent))
+            .Include(degradationEvent => degradationEvent.NotificationDeliveries)
+            .Where(degradationEvent => degradationEvent.NotificationDeliveries
+                .Any(delivery => delivery.Status == NotificationDeliveryStatus.Pending))
             .OrderBy(degradationEvent => degradationEvent.StartedAt)
             .ThenBy(degradationEvent => degradationEvent.Id)
             .ToListAsync(cancellationToken);
     public void AddRule(AlertRule rule) => dbContext.AlertRules.Add(rule);
     public void AddEvent(DegradationEvent degradationEvent) => dbContext.DegradationEvents.Add(degradationEvent);
+    public void AddNotificationDelivery(NotificationDelivery delivery) => dbContext.NotificationDeliveries.Add(delivery);
     public Task SaveChangesAsync(CancellationToken cancellationToken) => dbContext.SaveChangesAsync(cancellationToken);
 }

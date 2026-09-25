@@ -78,6 +78,7 @@ internal sealed class RecordingAlertStateRepository : IAlertStateRepository
     public void AddRule(AlertRule rule) { }
 
     public void AddEvent(DegradationEvent degradationEvent) { }
+    public void AddNotificationDelivery(NotificationDelivery delivery) { }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

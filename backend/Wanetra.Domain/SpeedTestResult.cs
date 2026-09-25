@@ -21,5 +21,6 @@ public class SpeedTestResult
 
     public long? DurationMs { get; set; }
     public bool Success { get; set; }
+    public SpeedTestFailureKind? FailureKind { get; set; }
     public string? ErrorMessage { get; set; }
 }

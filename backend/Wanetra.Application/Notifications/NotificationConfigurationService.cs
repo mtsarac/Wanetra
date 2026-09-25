@@ -48,10 +48,11 @@ public sealed class NotificationConfigurationService(
             Validate(configuration.Provider, json);
             prepared.Add(new NotificationConfiguration
             {
+                Id = existing?.Id ?? 0,
                 Provider = configuration.Provider,
                 Enabled = configuration.Enabled,
                 ConfigurationJson = json,
-                CreatedAt = now,
+                CreatedAt = existing?.CreatedAt ?? now,
                 UpdatedAt = now,
             });
         }

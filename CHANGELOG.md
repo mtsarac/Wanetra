@@ -50,18 +50,25 @@ All notable changes to Wanetra will be documented here.
   incident list alongside threshold configuration.
 - Fresh databases seed the documented 30% download-baseline degradation rule,
   so alert reads and evaluations work before the user edits settings.
-- A notification retry worker replays persisted degradation and recovery
-  notifications that have no successful delivery; persisted event flags prevent
-  further attempts after successful delivery is recorded. No database schema
-  changes.
+- A notification retry worker tracks opening and recovery delivery separately
+  for each event destination; schema migration backfills legacy event-level
+  notification flags into per-destination delivery records.
 - Frontend regression tests cover paginated history, settings, notification
   secret preservation, dashboard run state, and API errors.
 
 ### Changed
 
-- Every persisted speed-test execution failure participates in the alert
-  unhealthy/recovery state machine; caller cancellation remains unpersisted.
-- Seven-day alert baselines exclude the measurement currently being evaluated.
+- Failed speed tests now expose a failure kind. Only network failures and
+  unusable measurements affect degradation state; local CLI/process failures and
+  caller cancellation do not count as WAN degradation.
+- Disabling an alert rule closes an open incident with status `disabled` and
+  clears the degradation gauge. Re-enabling starts with no open incident.
+- Notification delivery is tracked per enabled configuration snapshot. Successful
+  channels are not retried when another channel fails; recovery waits for that
+  channel's opening delivery. Destination IDs remain stable across edits.
+- Notification reads return only safe provider metadata, never URLs or secret
+  values. Successful empty HTTP responses are accepted, and chart history pages
+  are fetched sequentially.
 - Dashboard charts load all pages in the selected range, independently from the
   six most recent readings.
 - LibreSpeed's unavailable packet-loss measurement is exposed as unavailable

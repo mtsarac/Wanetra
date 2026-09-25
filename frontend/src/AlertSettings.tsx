@@ -55,6 +55,12 @@ function formatTime(value: string | null) {
   return value ? new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 }
 
+function deliverySummary(incident: { notificationDeliveries: { provider: string; trigger: string; status: string; attemptCount: number }[] }, trigger: string) {
+  const deliveries = incident.notificationDeliveries.filter((delivery) => delivery.trigger === trigger)
+  return deliveries.length
+    ? deliveries.map((delivery) => `${delivery.provider}: ${delivery.status}${delivery.attemptCount > 1 ? ` (${delivery.attemptCount} attempts)` : ''}`).join(' · ')
+    : 'No configured providers'
+}
 export default function AlertSettings() {
   const client = useQueryClient()
   const rule = useQuery({ queryKey: ['alert-rule'], queryFn: api.getAlertRule })
@@ -70,6 +76,8 @@ export default function AlertSettings() {
       setDraft(toDraft(saved))
       setMessage('Alert rule saved.')
       await client.invalidateQueries({ queryKey: ['alert-rule'] })
+      await client.invalidateQueries({ queryKey: ['degradation-events'] })
+      await client.invalidateQueries({ queryKey: ['active-alert'] })
     },
     onError: (error: Error) => setMessage(error.message),
   })
@@ -125,13 +133,15 @@ export default function AlertSettings() {
           <div className="event-list">
             {events.data.map((incident) => (
               <article className="event-card" key={incident.id}>
-                <div className="event-heading"><div><strong>{incident.reason}</strong><span>Started {formatTime(incident.startedAt)}{incident.endedAt ? ` · ended ${formatTime(incident.endedAt)}` : ''}</span></div><span className={`event-status ${incident.status}`}>{incident.status}</span></div>
+                <div className="event-heading"><div><strong>{incident.reason}</strong><span>Started {formatTime(incident.startedAt)}{incident.endedAt ? ` · ended ${formatTime(incident.endedAt)}` : ''}</span>{incident.closureReason && <span>Closed: {incident.closureReason}</span>}</div><span className={`event-status ${incident.status}`}>{incident.status}</span></div>
                 <div className="event-metrics">
                   <span>Download {incident.worstDownloadMbps == null ? '—' : `${incident.worstDownloadMbps.toFixed(1)} Mbps`}</span>
                   <span>Upload {incident.worstUploadMbps == null ? '—' : `${incident.worstUploadMbps.toFixed(1)} Mbps`}</span>
                   <span>Latency {incident.maxLatencyMs == null ? '—' : `${incident.maxLatencyMs.toFixed(1)} ms`}</span>
                 </div>
-                <div className="event-notifications">Degradation notification: {incident.notificationSent ? 'sent' : 'not sent'} · Recovery notification: {incident.recoveryNotificationSent ? 'sent' : 'not sent'}</div>
+                <div className="event-notifications">
+                  Opened: {deliverySummary(incident, 'opened')} · Recovered: {deliverySummary(incident, 'recovered')}
+                </div>
               </article>
             ))}
           </div>

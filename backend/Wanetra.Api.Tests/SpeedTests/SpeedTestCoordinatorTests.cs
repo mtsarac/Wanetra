@@ -74,10 +74,11 @@ public class SpeedTestCoordinatorTests
             throw new InvalidOperationException("librespeed-cli exited with code 1: connection refused"));
 
         await coordinator.TryStart(SpeedTestTrigger.Manual)!;
-
         var stored = Assert.Single(repository.Results);
+
         Assert.False(stored.Success);
-        Assert.Equal("librespeed-cli exited with code 1: connection refused", stored.ErrorMessage);
+        Assert.Equal(SpeedTestFailureKind.LocalExecutionFailure, stored.FailureKind);
+        Assert.Equal("Speed test could not be executed.", stored.ErrorMessage);
         Assert.Equal("stub", stored.Engine);
 
         Assert.Equal(SpeedTestState.Failed, coordinator.Status.State);

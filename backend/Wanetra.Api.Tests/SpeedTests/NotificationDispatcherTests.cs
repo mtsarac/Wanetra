@@ -72,35 +72,46 @@ public class NotificationDispatcherTests
     }
 
     [Fact]
-    public async Task Successful_provider_marks_notification_sent_even_when_another_provider_fails()
+    public async Task Failed_provider_channel_retries_without_resending_the_successful_provider()
     {
         await using var factory = new WanetraApiFactory();
         var eventId = await SeedEventAsync(factory);
-        await SeedConfigAsync(factory, "webhook", "failed");
-        await SeedConfigAsync(factory, "webhook", "successful");
+        await SeedConfigAsync(factory, "webhook", "webhook config");
+        await SeedConfigAsync(factory, "ntfy", "ntfy config");
 
-        var provider = await DispatchAsync(
+        var first = await DispatchBothAsync(
             factory,
             NotificationTrigger.Opened,
             eventId,
-            configuration => configuration == "failed");
+            configuration => configuration == "ntfy config");
 
-        Assert.Equal(2, provider.Attempts.Count);
-        Assert.Single(provider.Sent);
+        Assert.Single(first.Webhook.Sent);
+        Assert.Empty(first.Ntfy.Sent);
+        Assert.Single(first.Ntfy.Attempts);
+        Assert.False(await FlagAsync(factory, e => e.NotificationSent));
+
+        var retry = await DispatchBothAsync(factory, null, null);
+
+        Assert.Empty(retry.Webhook.Attempts);
+        Assert.Single(retry.Ntfy.Sent);
         Assert.True(await FlagAsync(factory, e => e.NotificationSent));
+        Assert.Equal(2, (await DeliveriesAsync(factory)).Count(delivery => delivery.Status == NotificationDeliveryStatus.Delivered));
     }
 
     [Fact]
     public async Task Recovered_dispatch_sets_recovery_flag()
     {
         await using var factory = new WanetraApiFactory();
-        var eventId = await SeedEventAsync(factory, DegradationStatus.Recovered);
+        var eventId = await SeedEventAsync(
+            factory,
+            DegradationStatus.Recovered,
+            notificationSent: true);
         await SeedConfigAsync(factory, "webhook", """{"url":"https://example.com/hook"}""");
 
         await DispatchAsync(factory, NotificationTrigger.Recovered, eventId);
 
         Assert.True(await FlagAsync(factory, e => e.RecoveryNotificationSent));
-        Assert.False(await FlagAsync(factory, e => e.NotificationSent));
+        Assert.True(await FlagAsync(factory, e => e.NotificationSent));
     }
     [Fact]
     public async Task Failed_recovery_notification_remains_pending_for_retry()
@@ -125,10 +136,10 @@ public class NotificationDispatcherTests
     public async Task Recovered_event_retries_open_before_sending_recovery()
     {
         await using var factory = new WanetraApiFactory();
-        await SeedEventAsync(factory, DegradationStatus.Recovered);
+        var eventId = await SeedEventAsync(factory, DegradationStatus.Recovered);
         await SeedConfigAsync(factory, "webhook", "configured");
 
-        var failedOpen = await DispatchPendingAsync(factory, _ => true);
+        var failedOpen = await DispatchAsync(factory, NotificationTrigger.Opened, eventId, _ => true);
         Assert.Single(failedOpen.Attempts);
         Assert.False(await FlagAsync(factory, e => e.NotificationSent));
         Assert.False(await FlagAsync(factory, e => e.RecoveryNotificationSent));
@@ -250,11 +261,12 @@ public class NotificationDispatcherTests
         Func<string, bool>? shouldFail = null)
     {
         using var scope = factory.Services.CreateScope();
-        var recorder = new RecordingProvider(shouldFail);
+        var recorder = new RecordingProvider("webhook", shouldFail);
         var dispatcher = new NotificationDispatcher(
             scope.ServiceProvider.GetRequiredService<INotificationConfigurationRepository>(),
             scope.ServiceProvider.GetRequiredService<IAlertStateRepository>(),
             [recorder],
+            scope.ServiceProvider.GetRequiredService<TimeProvider>(),
             scope.ServiceProvider.GetRequiredService<ILogger<NotificationDispatcher>>());
         await dispatcher.DispatchAsync(trigger, eventId, CancellationToken.None);
         return recorder;
@@ -265,14 +277,42 @@ public class NotificationDispatcherTests
         Func<string, bool>? shouldFail = null)
     {
         using var scope = factory.Services.CreateScope();
-        var recorder = new RecordingProvider(shouldFail);
+        var recorder = new RecordingProvider("webhook", shouldFail);
         var dispatcher = new NotificationDispatcher(
             scope.ServiceProvider.GetRequiredService<INotificationConfigurationRepository>(),
             scope.ServiceProvider.GetRequiredService<IAlertStateRepository>(),
             [recorder],
+            scope.ServiceProvider.GetRequiredService<TimeProvider>(),
             scope.ServiceProvider.GetRequiredService<ILogger<NotificationDispatcher>>());
         await dispatcher.DispatchPendingAsync(CancellationToken.None);
         return recorder;
+    }
+    private static async Task<(RecordingProvider Webhook, RecordingProvider Ntfy)> DispatchBothAsync(
+        WanetraApiFactory factory,
+        NotificationTrigger? trigger,
+        long? eventId,
+        Func<string, bool>? shouldFail = null)
+    {
+        using var scope = factory.Services.CreateScope();
+        var webhook = new RecordingProvider("webhook");
+        var ntfy = new RecordingProvider("ntfy", shouldFail);
+        var dispatcher = new NotificationDispatcher(
+            scope.ServiceProvider.GetRequiredService<INotificationConfigurationRepository>(),
+            scope.ServiceProvider.GetRequiredService<IAlertStateRepository>(),
+            [webhook, ntfy],
+            scope.ServiceProvider.GetRequiredService<TimeProvider>(),
+            scope.ServiceProvider.GetRequiredService<ILogger<NotificationDispatcher>>());
+
+        if (trigger.HasValue && eventId.HasValue)
+        {
+            await dispatcher.DispatchAsync(trigger.Value, eventId.Value, CancellationToken.None);
+        }
+        else
+        {
+            await dispatcher.DispatchPendingAsync(CancellationToken.None);
+        }
+
+        return (webhook, ntfy);
     }
     private static async Task<bool> FlagAsync(WanetraApiFactory factory, Func<DegradationEvent, bool> pick)
     {
@@ -280,10 +320,16 @@ public class NotificationDispatcherTests
         var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.WanetraDbContext>();
         return pick(await db.DegradationEvents.SingleAsync());
     }
-
-    private sealed class RecordingProvider(Func<string, bool>? shouldFail = null) : INotificationProvider
+    private static async Task<List<NotificationDelivery>> DeliveriesAsync(WanetraApiFactory factory)
     {
-        public string Name => "webhook";
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.WanetraDbContext>();
+        return await db.NotificationDeliveries.OrderBy(delivery => delivery.Id).ToListAsync();
+    }
+
+    private sealed class RecordingProvider(string name, Func<string, bool>? shouldFail = null) : INotificationProvider
+    {
+        public string Name => name;
         public List<NotificationMessage> Sent { get; } = [];
         public List<string> Attempts { get; } = [];
 

@@ -12,6 +12,7 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
     public DbSet<AlertState> AlertStates => Set<AlertState>();
     public DbSet<DegradationEvent> DegradationEvents => Set<DegradationEvent>();
     public DbSet<NotificationConfiguration> NotificationConfigurations => Set<NotificationConfiguration>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -31,6 +32,7 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
             entity.Property(x => x.Isp).HasMaxLength(256);
             entity.Property(x => x.ExternalIp).HasMaxLength(45);
             entity.Property(x => x.ErrorMessage).HasMaxLength(2048);
+            entity.Property(x => x.FailureKind).HasConversion<string>().HasMaxLength(32);
             entity.HasIndex(x => x.Timestamp);
         });
 
@@ -54,14 +56,26 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
         {
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
             entity.Property(x => x.Reason).HasMaxLength(1024);
+            entity.Property(x => x.ClosureReason).HasMaxLength(128);
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.StartedAt);
         });
 
         modelBuilder.Entity<NotificationConfiguration>(entity =>
         {
-            entity.Property(x => x.Provider).HasMaxLength(32);
             entity.HasIndex(x => x.Provider);
+        });
+        modelBuilder.Entity<NotificationDelivery>(entity =>
+        {
+            entity.Property(x => x.Trigger).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Provider).HasMaxLength(32);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.LastErrorSummary).HasMaxLength(128);
+            entity.HasIndex(x => new { x.DegradationEventId, x.Trigger, x.ConfigurationId }).IsUnique();
+            entity.HasOne(delivery => delivery.DegradationEvent)
+                .WithMany(degradationEvent => degradationEvent.NotificationDeliveries)
+                .HasForeignKey(delivery => delivery.DegradationEventId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

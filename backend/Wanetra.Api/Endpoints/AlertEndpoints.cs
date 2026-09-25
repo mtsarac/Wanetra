@@ -1,4 +1,5 @@
 using Wanetra.Api.Contracts;
+using Wanetra.Application.Alerts;
 using Wanetra.Domain;
 
 namespace Wanetra.Api.Endpoints;
@@ -18,6 +19,7 @@ public static class AlertEndpoints
         endpoints.MapPut("/api/alerts/rule", async (
             AlertRuleUpdateRequest request,
             IAlertStateRepository repository,
+            AlertEvaluationService alertEvaluationService,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -51,6 +53,7 @@ public static class AlertEndpoints
             }
 
             await repository.SaveChangesAsync(cancellationToken);
+            await alertEvaluationService.SynchronizeRuleStateAsync(rule, cancellationToken);
             return Results.Ok(AlertRuleResponse.From(rule));
         });
 

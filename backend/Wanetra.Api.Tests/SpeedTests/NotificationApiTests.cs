@@ -71,6 +71,63 @@ public class NotificationApiTests
         Assert.DoesNotContain("private-token", rawResponse);
     }
     [Fact]
+    public async Task Webhook_method_headers_and_id_survive_blank_toggle_save_without_exposing_secrets()
+    {
+        await using var factory = new WanetraApiFactory();
+        var client = factory.CreateClient();
+        var initial = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest(
+                "webhook",
+                true,
+                """{"url":"https://example.com/hook?secret=private","method":"PUT","headers":{"X-Token":"private-header"}}""")]));
+        Assert.Equal(HttpStatusCode.OK, initial.StatusCode);
+        var savedInitial = await initial.Content.ReadFromJsonAsync<NotificationConfigurationListResponse>();
+        Assert.NotNull(savedInitial);
+        var originalId = savedInitial.Configurations.Single().Id;
+
+        var toggled = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest("webhook", false, """{"url":"","method":""}""")]));
+        Assert.Equal(HttpStatusCode.OK, toggled.StatusCode);
+        var response = await toggled.Content.ReadFromJsonAsync<NotificationConfigurationListResponse>();
+
+        Assert.NotNull(response);
+        var webhook = Assert.Single(response.Configurations);
+        Assert.Equal(originalId, webhook.Id);
+        Assert.Equal("PUT", webhook.Method);
+        Assert.True(webhook.HasUrl);
+        Assert.True(webhook.HasHeaders);
+        var raw = await client.GetStringAsync("/api/notifications");
+        Assert.DoesNotContain("private", raw);
+        Assert.DoesNotContain("example.com", raw);
+
+        var methodChanged = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest("webhook", false, """{"url":"","method":"GET"}""")]));
+        var changed = await methodChanged.Content.ReadFromJsonAsync<NotificationConfigurationListResponse>();
+        Assert.Equal("GET", Assert.Single(changed!.Configurations).Method);
+    }
+    [Fact]
+    public async Task Configuration_metadata_exposes_ntfy_fields_but_not_credentials()
+    {
+        await using var factory = new WanetraApiFactory();
+        var client = factory.CreateClient();
+        var saved = await client.PutAsJsonAsync("/api/notifications", new NotificationConfigurationUpdateListRequest(
+            [new NotificationConfigurationUpdateRequest(
+                "ntfy",
+                true,
+                """{"serverUrl":"https://ntfy.sh","topic":"wanetra","username":"private-user","password":"private-password","token":"private-token","priority":"high","tags":["warning","wan"]}""")]));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        var response = await client.GetStringAsync("/api/notifications");
+        Assert.Contains("https://ntfy.sh", response);
+        Assert.Contains("wanetra", response);
+        Assert.Contains("warning, wan", response);
+        Assert.Contains("high", response);
+        Assert.Contains("hasCredentials", response);
+        Assert.DoesNotContain("private-user", response);
+        Assert.DoesNotContain("private-password", response);
+        Assert.DoesNotContain("private-token", response);
+    }
+    [Fact]
     public async Task Put_preserves_blank_secret_fields_while_updating_other_settings()
     {
         await using var factory = new WanetraApiFactory();

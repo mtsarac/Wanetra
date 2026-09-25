@@ -1,6 +1,8 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Processes;
 
@@ -31,19 +33,78 @@ internal sealed class LibreSpeedEngine(
             arguments.Add(serverId.ToString(CultureInfo.InvariantCulture));
         }
 
-        var process = await processRunner.RunAsync(
-            settings.ExecutablePath,
-            arguments,
-            TimeSpan.FromSeconds(settings.TimeoutSeconds),
-            cancellationToken);
+        ProcessResult process;
+        try
+        {
+            process = await processRunner.RunAsync(
+                settings.ExecutablePath,
+                arguments,
+                TimeSpan.FromSeconds(settings.TimeoutSeconds),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (TimeoutException exception)
+        {
+            throw new SpeedTestExecutionException(
+                SpeedTestFailureKind.LocalExecutionFailure,
+                "librespeed-cli did not exit before the process timeout.",
+                exception);
+        }
+        catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException or IOException)
+        {
+            throw new SpeedTestExecutionException(
+                SpeedTestFailureKind.LocalExecutionFailure,
+                "Could not start librespeed-cli; verify that it exists and is executable.",
+                exception);
+        }
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException(
-                $"librespeed-cli exited with code {process.ExitCode}: {Describe(process.StandardError)}");
+            var networkFailure = IsNetworkFailure(process.StandardError);
+            throw new SpeedTestExecutionException(
+                networkFailure ? SpeedTestFailureKind.NetworkFailure : SpeedTestFailureKind.LocalExecutionFailure,
+                networkFailure
+                    ? "librespeed-cli could not reach the test service."
+                    : "librespeed-cli exited unexpectedly.");
         }
 
-        return Map(Parse(process.StandardOutput), settings);
+        try
+        {
+            return Map(Parse(process.StandardOutput), settings);
+        }
+        catch (SpeedTestExecutionException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+        {
+            throw new SpeedTestExecutionException(
+                SpeedTestFailureKind.MeasurementFailure,
+                "librespeed-cli returned invalid measurement output.",
+                exception);
+        }
+    }
+    private static bool IsNetworkFailure(string error)
+    {
+        var text = error.ToLowerInvariant();
+        return text.Contains("network is unreachable", StringComparison.Ordinal)
+            || text.Contains("no route to host", StringComparison.Ordinal)
+            || text.Contains("name or service not known", StringComparison.Ordinal)
+            || text.Contains("temporary failure in name resolution", StringComparison.Ordinal)
+            || text.Contains("no such host", StringComparison.Ordinal)
+            || text.Contains("lookup ", StringComparison.Ordinal)
+            || text.Contains("dns", StringComparison.Ordinal)
+            || text.Contains("timed out", StringComparison.Ordinal)
+            || text.Contains("timeout", StringComparison.Ordinal)
+            || text.Contains("deadline exceeded", StringComparison.Ordinal)
+            || text.Contains("connection refused", StringComparison.Ordinal)
+            || text.Contains("connection reset", StringComparison.Ordinal)
+            || text.Contains("connection aborted", StringComparison.Ordinal)
+            || text.Contains("remote host closed", StringComparison.Ordinal)
+            || text.Contains("no server available", StringComparison.Ordinal);
     }
 
     private static LibreSpeedOutput Parse(string standardOutput)
@@ -82,11 +143,4 @@ internal sealed class LibreSpeedEngine(
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string Describe(string standardError)
-    {
-        var message = standardError.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .LastOrDefault();
-
-        return string.IsNullOrEmpty(message) ? "no error output" : message;
-    }
 }

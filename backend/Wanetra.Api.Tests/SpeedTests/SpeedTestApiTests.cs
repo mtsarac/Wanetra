@@ -74,7 +74,7 @@ public class SpeedTestApiTests
             Run = async _ =>
             {
                 await engineGate.Task;
-                throw new InvalidOperationException("librespeed-cli exited with code 1");
+                throw new InvalidOperationException("A local runner failure");
             },
         };
         var client = factory.CreateClient();
@@ -94,7 +94,7 @@ public class SpeedTestApiTests
         var afterFailure = await client.GetFromJsonAsync<SpeedTestStatusResponse>("/api/speedtests/status");
 
         Assert.Equal("failed", afterFailure!.State);
-        Assert.Equal("librespeed-cli exited with code 1", afterFailure.ErrorMessage);
+        Assert.Equal("Speed test could not be executed.", afterFailure.ErrorMessage);
         Assert.Equal("scheduled", afterFailure.Trigger);
         Assert.Equal(whileRunning.StartedAt, afterFailure.StartedAt);
     }
@@ -151,6 +151,7 @@ public class SpeedTestApiTests
         Assert.Equal(wanted.Id, result!.Id);
         Assert.Equal(100, result.DownloadMbps);
         Assert.Equal("Test Server", result.ServerName);
+        Assert.Null(result.FailureKind);
     }
 
     [Fact]

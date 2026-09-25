@@ -6,28 +6,96 @@ namespace Wanetra.Application.Alerts;
 
 public sealed class AlertEvaluationService(
     IAlertStateRepository repository,
+    INotificationConfigurationRepository notificationConfigurationRepository,
     BaselineService baselineService,
     IPrometheusMetrics metrics,
     TimeProvider timeProvider)
 {
+    public async Task SynchronizeRuleStateAsync(AlertRule? rule, CancellationToken cancellationToken)
+    {
+        var state = await repository.GetStateAsync(cancellationToken);
+        var openEvent = await repository.GetOpenEventAsync(cancellationToken);
+        var changed = state.RuleId != rule?.Id || state.RuleUpdatedAt != rule?.UpdatedAt;
+        if (changed)
+        {
+            state.RuleId = rule?.Id;
+            state.RuleUpdatedAt = rule?.UpdatedAt;
+            state.ConsecutiveHealthyMeasurements = 0;
+            state.ConsecutiveUnhealthyMeasurements = 0;
+        }
+
+        if (openEvent is not null)
+        {
+            if (rule?.Enabled != true)
+            {
+                openEvent.Status = DegradationStatus.Disabled;
+                openEvent.EndedAt ??= timeProvider.GetUtcNow().UtcDateTime;
+                openEvent.ClosureReason = "Alert rule disabled";
+                openEvent.ConsecutiveHealthyMeasurements = 0;
+                openEvent.ConsecutiveUnhealthyMeasurements = 0;
+            }
+            else if (changed)
+            {
+                openEvent.Status = DegradationStatus.Active;
+                openEvent.ConsecutiveHealthyMeasurements = 0;
+                openEvent.ConsecutiveUnhealthyMeasurements = 0;
+            }
+        }
+
+        state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+        await repository.SaveChangesAsync(cancellationToken);
+        metrics.SetConnectionDegraded(rule?.Enabled == true && openEvent is not null);
+    }
+
     public async Task<(NotificationTrigger? Trigger, long? EventId)> EvaluateAsync(
         SpeedTestResult result, CancellationToken cancellationToken)
     {
-        var rule = await repository.GetEnabledRuleAsync(cancellationToken);
-        if (rule is null || rule.ConsecutiveFailuresRequired < 1 || rule.ConsecutiveRecoveriesRequired < 1)
+        var rule = await repository.GetRuleAsync(cancellationToken);
+        if (rule is null || !rule.Enabled || rule.ConsecutiveFailuresRequired < 1 || rule.ConsecutiveRecoveriesRequired < 1)
         {
+            await SynchronizeRuleStateAsync(rule, cancellationToken);
             return (null, null);
         }
 
         var state = await repository.GetStateAsync(cancellationToken);
-        ResetPendingOnRuleChange(state, rule);
+        var ruleChanged = ResetPendingOnRuleChange(state, rule);
+        var openEvent = await repository.GetOpenEventAsync(cancellationToken);
+        if (ruleChanged && openEvent is not null)
+        {
+            openEvent.Status = DegradationStatus.Active;
+            openEvent.ConsecutiveHealthyMeasurements = 0;
+            openEvent.ConsecutiveUnhealthyMeasurements = 0;
+        }
 
+        if (!result.Success
+            && result.FailureKind is not (SpeedTestFailureKind.NetworkFailure or SpeedTestFailureKind.MeasurementFailure))
+        {
+            if (ruleChanged)
+            {
+                state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+                await repository.SaveChangesAsync(cancellationToken);
+                metrics.SetConnectionDegraded(openEvent is not null);
+            }
+
+            return (null, null);
+        }
         var baseline = await baselineService.GetForMeasurementAsync(result.Timestamp, cancellationToken);
         var evaluation = AlertConditionEvaluator.Evaluate(rule, result, baseline);
+        if (evaluation.Outcome == AlertMeasurementOutcome.Ignored)
+        {
+            if (ruleChanged)
+            {
+                state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+                await repository.SaveChangesAsync(cancellationToken);
+                metrics.SetConnectionDegraded(openEvent is not null);
+            }
+
+            return (null, null);
+        }
 
         DegradationEvent? openedEvent = null;
         var recovered = false;
-        var openEvent = await repository.GetOpenEventAsync(cancellationToken);
+
         if (openEvent is null)
         {
             openedEvent = EvaluateWithoutOpenEvent(result, rule, state, evaluation, baseline);
@@ -35,6 +103,15 @@ public sealed class AlertEvaluationService(
         else
         {
             recovered = EvaluateOpenEvent(result, rule, state, openEvent, evaluation);
+        }
+
+        if (openedEvent is not null)
+        {
+            await InitializeDeliverySnapshotAsync(openedEvent, NotificationTrigger.Opened, cancellationToken);
+        }
+        else if (recovered && openEvent is not null)
+        {
+            await InitializeDeliverySnapshotAsync(openEvent, NotificationTrigger.Recovered, cancellationToken);
         }
 
         state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
@@ -49,6 +126,58 @@ public sealed class AlertEvaluationService(
         return recovered && openEvent is not null
             ? (NotificationTrigger.Recovered, openEvent.Id)
             : (null, null);
+    }
+    private async Task InitializeDeliverySnapshotAsync(
+        DegradationEvent degradationEvent,
+        NotificationTrigger trigger,
+        CancellationToken cancellationToken)
+    {
+        if (trigger == NotificationTrigger.Opened)
+        {
+            if (degradationEvent.OpenedDeliveryInitialized)
+            {
+                return;
+            }
+
+            var configurations = await notificationConfigurationRepository.ListAsync(cancellationToken);
+            foreach (var configuration in configurations.Where(configuration => configuration.Enabled).OrderBy(configuration => configuration.Id))
+            {
+                repository.AddNotificationDelivery(new NotificationDelivery
+                {
+                    DegradationEvent = degradationEvent,
+                    DegradationEventId = degradationEvent.Id,
+                    Trigger = NotificationTrigger.Opened,
+                    ConfigurationId = configuration.Id,
+                    Provider = configuration.Provider,
+                    Status = NotificationDeliveryStatus.Pending,
+                });
+            }
+
+            degradationEvent.OpenedDeliveryInitialized = true;
+            return;
+        }
+
+        if (degradationEvent.RecoveryDeliveryInitialized)
+        {
+            return;
+        }
+
+        foreach (var openedDelivery in degradationEvent.NotificationDeliveries
+                     .Where(delivery => delivery.Trigger == NotificationTrigger.Opened)
+                     .OrderBy(delivery => delivery.ConfigurationId))
+        {
+            repository.AddNotificationDelivery(new NotificationDelivery
+            {
+                DegradationEvent = degradationEvent,
+                DegradationEventId = degradationEvent.Id,
+                Trigger = NotificationTrigger.Recovered,
+                ConfigurationId = openedDelivery.ConfigurationId,
+                Provider = openedDelivery.Provider,
+                Status = NotificationDeliveryStatus.Pending,
+            });
+        }
+
+        degradationEvent.RecoveryDeliveryInitialized = true;
     }
 
     private DegradationEvent? EvaluateWithoutOpenEvent(
@@ -124,18 +253,18 @@ public sealed class AlertEvaluationService(
         state.ConsecutiveHealthyMeasurements = 0;
         return true;
     }
-
-    private static void ResetPendingOnRuleChange(AlertState state, AlertRule rule)
+    private static bool ResetPendingOnRuleChange(AlertState state, AlertRule rule)
     {
         if (state.RuleId == rule.Id && state.RuleUpdatedAt == rule.UpdatedAt)
         {
-            return;
+            return false;
         }
 
         state.RuleId = rule.Id;
         state.RuleUpdatedAt = rule.UpdatedAt;
         state.ConsecutiveHealthyMeasurements = 0;
         state.ConsecutiveUnhealthyMeasurements = 0;
+        return true;
     }
 
     private static void UpdateWorstMetrics(DegradationEvent openEvent, SpeedTestResult result)

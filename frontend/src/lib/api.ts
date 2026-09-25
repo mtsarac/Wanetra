@@ -3,6 +3,7 @@ export type SpeedTestResult = {
   timestamp: string
   engine: string
   success: boolean
+  failureKind: 'networkFailure' | 'measurementFailure' | 'localExecutionFailure' | null
   downloadMbps: number | null
   uploadMbps: number | null
   latencyMs: number | null
@@ -66,13 +67,23 @@ export type AlertRule = {
 }
 
 export type AlertRuleUpdate = Omit<AlertRule, 'id' | 'updatedAt'>
+export type NotificationDelivery = {
+  provider: string
+  trigger: 'opened' | 'recovered'
+  status: 'pending' | 'delivered' | 'skipped'
+  attemptCount: number
+  lastAttemptAt: string | null
+  deliveredAt: string | null
+  lastErrorSummary: string | null
+}
 
 export type DegradationEvent = {
   id: number
   startedAt: string
   endedAt: string | null
-  status: 'active' | 'recovering' | 'recovered'
+  status: 'active' | 'recovering' | 'recovered' | 'disabled'
   reason: string
+  closureReason: string | null
   baselineDownloadMbps: number | null
   worstDownloadMbps: number | null
   baselineUploadMbps: number | null
@@ -82,6 +93,7 @@ export type DegradationEvent = {
   maxPacketLossPercent: number | null
   notificationSent: boolean
   recoveryNotificationSent: boolean
+  notificationDeliveries: NotificationDelivery[]
 }
 
 export type RetentionSettings = {
@@ -112,6 +124,7 @@ export type ActiveAlert = {
   worstDownloadMbps: number | null
   baselineUploadMbps: number | null
   worstUploadMbps: number | null
+  notificationDeliveries: NotificationDelivery[]
 }
 
 export type NotificationConfiguration = {
@@ -120,6 +133,14 @@ export type NotificationConfiguration = {
   enabled: boolean
   hasConfiguration: boolean
   updatedAt: string
+  serverUrl: string | null
+  topic: string | null
+  priority: string | null
+  tags: string | null
+  method: string | null
+  hasUrl: boolean
+  hasHeaders: boolean
+  hasCredentials: boolean
 }
 
 export type NotificationConfigurationList = {
@@ -137,7 +158,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new Error(body?.message ?? `Request failed (${response.status})`)
   }
 
-  return response.json() as Promise<T>
+  if (response.status === 204) return undefined as T
+  const body = await response.text()
+  return body.trim() === '' ? undefined as T : JSON.parse(body) as T
 }
 
 async function getLatest(): Promise<SpeedTestResult | null> {
@@ -211,12 +234,12 @@ export const api = {
 export async function getHistory(from: Date, to?: Date): Promise<SpeedTestResult[]> {
   const query: HistoryQuery = { from, to, sort: 'asc', page: 1, pageSize: 200 }
   const firstPage = await api.getHistoryPage(query)
-  const pages = await Promise.all(
-    Array.from(
-      { length: Math.max(firstPage.totalPages - 1, 0) },
-      (_, index) => api.getHistoryPage({ ...query, page: index + 2 }),
-    ),
-  )
+  const results = [...firstPage.items]
 
-  return [firstPage, ...pages].flatMap((page) => page.items)
+  for (let page = 2; page <= firstPage.totalPages; page++) {
+    const nextPage = await api.getHistoryPage({ ...query, page })
+    results.push(...nextPage.items)
+  }
+
+  return results
 }

@@ -39,10 +39,35 @@ public class SpeedTestPersistenceTests
         var result = await dbContext.SpeedTestResults.SingleAsync();
         var degradationEvent = await dbContext.DegradationEvents.SingleAsync();
         Assert.False(result.Success);
-        Assert.Equal("DNS lookup failed", result.ErrorMessage);
-        Assert.Equal("speed test failed", degradationEvent.Reason);
+        Assert.Equal(SpeedTestFailureKind.NetworkFailure, result.FailureKind);
+        Assert.Equal("The DNS lookup failed.", result.ErrorMessage);
+        Assert.Equal("network test failed", degradationEvent.Reason);
         Assert.True(degradationEvent.NotificationSent);
-        Assert.Single(provider.Sent);
+    }
+    [Fact]
+    public async Task Local_execution_failure_is_persisted_and_counted_without_alerting()
+    {
+        var metrics = new RecordingMetrics();
+        await using var factory = new FailedEngineApiFactory(
+            new RecordingNotificationProvider(),
+            SpeedTestFailureKind.LocalExecutionFailure,
+            metrics);
+        using (var setupScope = factory.Services.CreateScope())
+        {
+            var rule = await setupScope.ServiceProvider.GetRequiredService<WanetraDbContext>().AlertRules.SingleAsync();
+            rule.ConsecutiveFailuresRequired = 1;
+            await setupScope.ServiceProvider.GetRequiredService<WanetraDbContext>().SaveChangesAsync();
+        }
+
+        await factory.Services.GetRequiredService<SpeedTestCoordinator>().TryStart(SpeedTestTrigger.Manual)!;
+
+        using var verifyScope = factory.Services.CreateScope();
+        var db = verifyScope.ServiceProvider.GetRequiredService<WanetraDbContext>();
+        var result = await db.SpeedTestResults.SingleAsync();
+        Assert.False(result.Success);
+        Assert.Equal(SpeedTestFailureKind.LocalExecutionFailure, result.FailureKind);
+        Assert.Equal(1, metrics.FailedResults);
+        Assert.Empty(await db.DegradationEvents.ToListAsync());
     }
 
     [Fact]
@@ -124,7 +149,10 @@ public class SpeedTestPersistenceTests
             });
         }
     }
-    private sealed class FailedEngineApiFactory(RecordingNotificationProvider provider) : WanetraApiFactory
+    private sealed class FailedEngineApiFactory(
+        RecordingNotificationProvider provider,
+        SpeedTestFailureKind failureKind = SpeedTestFailureKind.NetworkFailure,
+        RecordingMetrics? metrics = null) : WanetraApiFactory
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -134,9 +162,14 @@ public class SpeedTestPersistenceTests
             {
                 services.RemoveAll<ISpeedTestEngine>();
                 services.AddScoped<ISpeedTestEngine>(_ => new StubSpeedTestEngine(_ =>
-                    throw new InvalidOperationException("DNS lookup failed")));
+                    throw new SpeedTestExecutionException(failureKind, "The DNS lookup failed.")));
                 services.RemoveAll<INotificationProvider>();
                 services.AddSingleton<INotificationProvider>(provider);
+                if (metrics is not null)
+                {
+                    services.RemoveAll<IPrometheusMetrics>();
+                    services.AddSingleton<IPrometheusMetrics>(metrics);
+                }
             });
         }
     }
@@ -168,6 +201,26 @@ public class SpeedTestPersistenceTests
         {
             Sent.Add(message);
             return Task.CompletedTask;
+        }
+    }
+    private sealed class RecordingMetrics : IPrometheusMetrics
+    {
+        public int FailedResults { get; private set; }
+
+        public void Initialize(SpeedTestResult? latestResult, SpeedTestResult? latestSuccessfulResult, bool connectionDegraded)
+        {
+        }
+
+        public void RecordSpeedTest(SpeedTestResult result)
+        {
+            if (!result.Success)
+            {
+                FailedResults++;
+            }
+        }
+
+        public void SetConnectionDegraded(bool degraded)
+        {
         }
     }
 }

@@ -1,10 +1,5 @@
 namespace Wanetra.Application.Notifications;
 
-public enum NotificationTrigger
-{
-    Opened,
-    Recovered,
-}
 
 public sealed record NotificationMessage(
     string Title,

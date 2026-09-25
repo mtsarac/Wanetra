@@ -15,6 +15,7 @@ public interface IAlertStateRepository
 
     void AddRule(AlertRule rule);
     void AddEvent(DegradationEvent degradationEvent);
+    void AddNotificationDelivery(NotificationDelivery delivery);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
