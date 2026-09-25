@@ -5,7 +5,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, type MetricBaseline, type SpeedTestResult } from './lib/api'
+import { api, getHistory, type MetricBaseline, type SpeedTestResult } from './lib/api'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -57,7 +57,7 @@ function Chart({ results }: { results: SpeedTestResult[] }) {
 function QualityChart({ results }: { results: SpeedTestResult[] }) {
   const ref = useRef<HTMLDivElement>(null)
   const option = useMemo<EChartsOption>(() => {
-    const chronological = [...results].reverse()
+    const chronological = results
     return {
       animation: false,
       tooltip: { trigger: 'axis' },
@@ -115,8 +115,12 @@ function App() {
     queryFn: () => {
       const from = range === 'Custom' ? new Date(`${customFrom}T00:00:00`) : new Date(Date.now() - ranges[range])
       const to = range === 'Custom' ? new Date(`${customTo}T23:59:59.999`) : undefined
-      return api.getHistoryPage({ from, to, page: 1, pageSize: 200, sort: 'desc' }).then((page) => page.items)
+      return getHistory(from, to)
     },
+  })
+  const recent = useQuery({
+    queryKey: ['recent-history'],
+    queryFn: () => api.getHistoryPage({ page: 1, pageSize: 6, sort: 'desc' }),
   })
   const run = useMutation({
     mutationFn: api.runSpeedTest,
@@ -133,13 +137,13 @@ function App() {
     wasRunning.current = false
     void client.invalidateQueries({ queryKey: ['latest'] })
     void client.invalidateQueries({ queryKey: ['history'] })
+    void client.invalidateQueries({ queryKey: ['recent-history'] })
     void client.invalidateQueries({ queryKey: ['baseline'] })
     void client.invalidateQueries({ queryKey: ['active-alert'] })
     void client.invalidateQueries({ queryKey: ['status'] })
   }, [client, status.data?.state])
 
-  const error = latest.error ?? status.error ?? schedule.error ?? baseline.error ?? activeAlert.error ?? history.error ?? run.error
-  const recent = history.data?.slice(0, 6) ?? []
+  const error = latest.error ?? status.error ?? schedule.error ?? baseline.error ?? activeAlert.error ?? history.error ?? recent.error ?? run.error
   const baselineUnavailable: MetricBaseline = { available: false, validSamples: 0, baselineMbps: null, latestMbps: null, percentChange: null }
 
   return (
@@ -155,7 +159,7 @@ function App() {
         <Metric label="Upload" value={formatNumber(latest.data?.uploadMbps, 'Mbps')} tone="green" />
         <Metric label="Latency" value={formatNumber(latest.data?.latencyMs, 'ms')} tone="white" />
         <Metric label="Jitter" value={formatNumber(latest.data?.jitterMs, 'ms')} tone="violet" />
-        <Metric label="Packet loss" value={formatNumber(latest.data?.packetLossPercent, '%')} tone="rose" />
+        <Metric label="Packet loss (not reported by LibreSpeed)" value={formatNumber(latest.data?.packetLossPercent, '%')} tone="rose" />
         <div className="action-metric"><span>Last test · {formatTime(latest.data?.timestamp)}</span><button disabled={status.data?.state === 'running' || run.isPending} onClick={() => run.mutate()}>{run.isPending || status.data?.state === 'running' ? 'Running…' : 'Run speed test'}</button></div>
       </section>
       <section className="panel baseline">
@@ -181,12 +185,12 @@ function App() {
         </aside>
       </section>
       <section className="panel quality-panel">
-        <div className="panel-head"><div><p className="kicker">CONNECTION QUALITY</p><h2>Latency, jitter, packet loss</h2></div><span className="muted">{history.data?.length ?? 0} recent measurements plotted</span></div>
+        <div className="panel-head"><div><p className="kicker">CONNECTION QUALITY</p><h2>Latency and jitter</h2></div><span className="muted">{history.data?.length ?? 0} measurements in selected range · packet loss unavailable with LibreSpeed</span></div>
         {history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <QualityChart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}
       </section>
       <section className="panel recent">
         <div className="panel-head"><div><p className="kicker">RECENT MEASUREMENTS</p><h2>Latest readings</h2></div><span className="muted">{latest.data ? `Updated ${formatTime(latest.data.timestamp)}` : '—'}</span></div>
-        {recent.length ? <div className="table-wrap"><table><thead><tr><th>Time</th><th>Download</th><th>Upload</th><th>Latency</th><th>Jitter</th><th>Result</th></tr></thead><tbody>{recent.map((item) => <tr key={item.id}><td>{formatTime(item.timestamp)}</td><td>{formatNumber(item.downloadMbps, 'Mbps')}</td><td>{formatNumber(item.uploadMbps, 'Mbps')}</td><td>{formatNumber(item.latencyMs, 'ms')}</td><td>{formatNumber(item.jitterMs, 'ms')}</td><td className={item.success ? 'success' : 'failure'}>{item.success ? 'Success' : 'Failed'}</td></tr>)}</tbody></table></div> : <div className="empty">No tests have been recorded yet.</div>}
+        {recent.isLoading ? <div className="empty">Loading recent measurements…</div> : recent.data?.items.length ? <div className="table-wrap"><table><thead><tr><th>Time</th><th>Download</th><th>Upload</th><th>Latency</th><th>Jitter</th><th>Result</th></tr></thead><tbody>{recent.data.items.map((item) => <tr key={item.id}><td>{formatTime(item.timestamp)}</td><td>{formatNumber(item.downloadMbps, 'Mbps')}</td><td>{formatNumber(item.uploadMbps, 'Mbps')}</td><td>{formatNumber(item.latencyMs, 'ms')}</td><td>{formatNumber(item.jitterMs, 'ms')}</td><td className={item.success ? 'success' : 'failure'}>{item.success ? 'Success' : 'Failed'}</td></tr>)}</tbody></table></div> : <div className="empty">No tests have been recorded yet.</div>}
       </section>
     </main>
   )
