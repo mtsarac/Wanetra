@@ -12,6 +12,14 @@ function formatTime(value: string) {
 function metric(value: number | null, unit: string) {
   return value == null ? '—' : `${value.toFixed(1)} ${unit}`
 }
+function failureKindLabel(kind: SpeedTestResult['failureKind']) {
+  switch (kind) {
+    case 'networkFailure': return 'Network failure'
+    case 'measurementFailure': return 'Measurement failure'
+    case 'localExecutionFailure': return 'Local execution failure'
+    default: return 'Unknown failure'
+  }
+}
 
 function Details({ result }: { result: SpeedTestResult }) {
   return (
@@ -20,6 +28,7 @@ function Details({ result }: { result: SpeedTestResult }) {
       <div><span>Location</span><strong>{result.serverLocation ?? '—'}</strong></div>
       <div><span>Engine</span><strong>{result.engine}</strong></div>
       <div><span>Duration</span><strong>{metric(result.durationMs, 'ms')}</strong></div>
+      {!result.success && <div><span>Failure kind</span><strong>{failureKindLabel(result.failureKind)}</strong></div>}
       <div><span>ISP</span><strong>{result.isp ?? '—'}</strong></div>
       <div><span>External IP</span><strong>{result.externalIp ?? '—'}</strong></div>
       {result.errorMessage && <p className="failure detail-error">{result.errorMessage}</p>}

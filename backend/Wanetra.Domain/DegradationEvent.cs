@@ -7,6 +7,7 @@ public class DegradationEvent
     public DateTime? EndedAt { get; set; }
     public DegradationStatus Status { get; set; }
     public required string Reason { get; set; }
+    public string? ClosureReason { get; set; }
 
     public double? BaselineDownloadMbps { get; set; }
     public double? WorstDownloadMbps { get; set; }
@@ -23,4 +24,7 @@ public class DegradationEvent
 
     public bool NotificationSent { get; set; }
     public bool RecoveryNotificationSent { get; set; }
+    public bool OpenedDeliveryInitialized { get; set; }
+    public bool RecoveryDeliveryInitialized { get; set; }
+    public List<NotificationDelivery> NotificationDeliveries { get; set; } = [];
 }

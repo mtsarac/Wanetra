@@ -31,6 +31,7 @@ public sealed class SpeedTestExecutor(
         {
             result = await engine.RunAsync(cancellationToken);
             result.Success = true;
+            result.FailureKind = null;
             result.ErrorMessage = null;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -38,16 +39,15 @@ public sealed class SpeedTestExecutor(
             logger.LogWarning("Speed test cancelled using engine {Engine}", engine.Name);
             throw;
         }
-        catch (Exception ex)
+        catch (SpeedTestExecutionException exception)
         {
-            logger.LogError(ex, "Speed test failed using engine {Engine}", engine.Name);
-
-            result = new SpeedTestResult
-            {
-                Engine = engine.Name,
-                Success = false,
-                ErrorMessage = Truncate(ex.Message),
-            };
+            logger.LogError(exception, "Speed test failed using engine {Engine} ({FailureKind})", engine.Name, exception.FailureKind);
+            result = FailedResult(exception.FailureKind, exception.Message);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Speed test failed using engine {Engine}", engine.Name);
+            result = FailedResult(SpeedTestFailureKind.LocalExecutionFailure, "Speed test could not be executed.");
         }
 
         result.Engine = engine.Name;
@@ -76,6 +76,11 @@ public sealed class SpeedTestExecutor(
         return result;
     }
 
-    private static string Truncate(string message) =>
-        message.Length <= MaxErrorMessageLength ? message : message[..MaxErrorMessageLength];
+    private SpeedTestResult FailedResult(SpeedTestFailureKind failureKind, string message) => new()
+    {
+        Engine = engine.Name,
+        Success = false,
+        FailureKind = failureKind,
+        ErrorMessage = message.Length <= MaxErrorMessageLength ? message : message[..MaxErrorMessageLength],
+    };
 }

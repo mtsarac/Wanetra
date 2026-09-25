@@ -1,7 +1,9 @@
+using System.ComponentModel;
 using Microsoft.Extensions.Options;
+using Wanetra.Application.SpeedTests;
+using Wanetra.Domain;
 using Wanetra.Infrastructure.Processes;
 using Wanetra.Infrastructure.SpeedTests;
-
 namespace Wanetra.Api.Tests.SpeedTests;
 
 public class LibreSpeedEngineTests
@@ -50,30 +52,76 @@ public class LibreSpeedEngineTests
     }
 
     [Fact]
-    public async Task Reports_the_last_error_line_when_the_process_fails()
+    public async Task Reports_process_exit_failure_as_network_failure_when_cli_reports_dns_error()
     {
-        var runner = new StubProcessRunner(new ProcessResult(1, string.Empty, "loading server list\nno server available\n"));
+        var runner = new StubProcessRunner(new ProcessResult(1, string.Empty, "lookup speed.example: no such host"));
         var engine = CreateEngine(runner, new LibreSpeedOptions());
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
             () => engine.RunAsync(CancellationToken.None));
 
-        Assert.Contains("exited with code 1", error.Message);
-        Assert.Contains("no server available", error.Message);
+        Assert.Equal(SpeedTestFailureKind.NetworkFailure, error.FailureKind);
+        Assert.Equal("librespeed-cli could not reach the test service.", error.Message);
+    }
+
+    [Fact]
+    public async Task Classifies_process_timeout_as_local_execution_failure()
+    {
+        var engine = CreateEngine(new ThrowingProcessRunner(new TimeoutException()), new LibreSpeedOptions());
+
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
+            () => engine.RunAsync(CancellationToken.None));
+
+        Assert.Equal(SpeedTestFailureKind.LocalExecutionFailure, error.FailureKind);
+    }
+
+    [Fact]
+    public async Task Classifies_cli_reported_network_timeout_as_network_failure()
+    {
+        var runner = new StubProcessRunner(new ProcessResult(1, string.Empty, "connection timed out"));
+        var engine = CreateEngine(runner, new LibreSpeedOptions());
+
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
+            () => engine.RunAsync(CancellationToken.None));
+
+        Assert.Equal(SpeedTestFailureKind.NetworkFailure, error.FailureKind);
     }
 
     [Theory]
     [InlineData("[]")]
     [InlineData("not json")]
-    public async Task Rejects_unusable_output(string standardOutput)
+    public async Task Rejects_unusable_output_as_measurement_failure(string standardOutput)
     {
         var runner = new StubProcessRunner(new ProcessResult(0, standardOutput, string.Empty));
         var engine = CreateEngine(runner, new LibreSpeedOptions());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
             () => engine.RunAsync(CancellationToken.None));
+
+        Assert.Equal(SpeedTestFailureKind.MeasurementFailure, error.FailureKind);
     }
 
-    private static LibreSpeedEngine CreateEngine(StubProcessRunner runner, LibreSpeedOptions options) =>
+    [Theory]
+    [InlineData(typeof(Win32Exception))]
+    [InlineData(typeof(UnauthorizedAccessException))]
+    public async Task Classifies_process_start_errors_as_local_execution_failure(Type exceptionType)
+    {
+        var exception = (Exception)Activator.CreateInstance(exceptionType)!;
+        var engine = CreateEngine(new ThrowingProcessRunner(exception), new LibreSpeedOptions());
+
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
+            () => engine.RunAsync(CancellationToken.None));
+
+        Assert.Equal(SpeedTestFailureKind.LocalExecutionFailure, error.FailureKind);
+    }
+
+    private static LibreSpeedEngine CreateEngine(IProcessRunner runner, LibreSpeedOptions options) =>
         new(runner, Options.Create(options));
+
+    private sealed class ThrowingProcessRunner(Exception exception) : IProcessRunner
+    {
+        public Task<ProcessResult> RunAsync(string fileName, IReadOnlyList<string> arguments, TimeSpan timeout, CancellationToken cancellationToken) =>
+            Task.FromException<ProcessResult>(exception);
+    }
 }
+

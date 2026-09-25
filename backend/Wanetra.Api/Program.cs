@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Wanetra.Application.Alerts;
 using Wanetra.Api.Endpoints;
 using Prometheus;
 using Wanetra.Api.Prometheus;
@@ -46,6 +47,10 @@ await using (var scope = app.Services.CreateAsyncScope())
         });
         await alerts.SaveChangesAsync(CancellationToken.None);
     }
+    var alertEvaluationService = scope.ServiceProvider.GetRequiredService<AlertEvaluationService>();
+    await alertEvaluationService.SynchronizeRuleStateAsync(
+        await alerts.GetRuleAsync(CancellationToken.None),
+        CancellationToken.None);
 
     metrics.Initialize(
         await results.FindLatestAsync(CancellationToken.None),

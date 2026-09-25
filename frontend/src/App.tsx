@@ -153,7 +153,7 @@ function App() {
         <div className="status-chip"><i className={status.data?.state === 'running' ? 'pulse' : ''} /> {status.data?.state ?? 'loading'}</div>
       </header>
       {error && <div className="error" role="alert">{error instanceof Error ? error.message : 'Could not load dashboard data.'}</div>}
-      {activeAlert.data && <section className="active-alert" aria-live="polite"><div><p className="kicker">ACTIVE DEGRADATION</p><strong>{activeAlert.data.reason}</strong></div><div><span>{activeAlert.data.status}</span><small>Since {formatTime(activeAlert.data.startedAt)}</small></div></section>}
+      {activeAlert.data && <section className="active-alert" aria-live="polite"><div><p className="kicker">ACTIVE DEGRADATION</p><strong>{activeAlert.data.reason}</strong><small>{activeAlert.data.notificationDeliveries.length ? activeAlert.data.notificationDeliveries.map((delivery) => `${delivery.provider}: ${delivery.status}`).join(' · ') : 'No provider notifications configured'}</small></div><div><span>{activeAlert.data.status}</span><small>Since {formatTime(activeAlert.data.startedAt)}</small></div></section>}
       <section className="metrics">
         <Metric label="Download" value={formatNumber(latest.data?.downloadMbps, 'Mbps')} tone="blue" />
         <Metric label="Upload" value={formatNumber(latest.data?.uploadMbps, 'Mbps')} tone="green" />

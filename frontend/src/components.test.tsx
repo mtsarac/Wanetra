@@ -108,15 +108,23 @@ describe('schedule settings', () => {
 describe('notification settings', () => {
   it('keeps saved credentials blank in the UI and submits blank fields for server-side preservation', async () => {
     vi.spyOn(api, 'getNotifications').mockResolvedValue({ configurations: [
-      { id: 1, provider: 'ntfy', enabled: true, hasConfiguration: true, updatedAt: '' },
-      { id: 2, provider: 'webhook', enabled: false, hasConfiguration: false, updatedAt: '' },
+      {
+        id: 1, provider: 'ntfy', enabled: true, hasConfiguration: true, updatedAt: '',
+        serverUrl: 'https://ntfy.sh', topic: 'wanetra', priority: 'default', tags: null,
+        method: null, hasUrl: false, hasHeaders: false, hasCredentials: true,
+      },
+      {
+        id: 2, provider: 'webhook', enabled: false, hasConfiguration: false, updatedAt: '',
+        serverUrl: null, topic: null, priority: null, tags: null, method: null,
+        hasUrl: false, hasHeaders: false, hasCredentials: false,
+      },
     ] })
     const save = vi.spyOn(api, 'saveNotifications').mockResolvedValue({ configurations: [] })
     const user = userEvent.setup()
     renderWithClient(<NotificationsPanel />)
 
     expect((await screen.findByLabelText('Password') as HTMLInputElement).value).toBe('')
-    expect((await screen.findByPlaceholderText('(stored)') as HTMLInputElement).value).toBe('')
+    expect((await screen.findAllByPlaceholderText('(stored)')).every((input) => input instanceof HTMLInputElement && input.value === '')).toBe(true)
     await user.click(screen.getByRole('button', { name: 'Save notifications' }))
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
@@ -126,6 +134,24 @@ describe('notification settings', () => {
     expect(JSON.parse(ntfy!.configurationJson)).toMatchObject({ serverUrl: '', topic: '' })
     expect(JSON.parse(ntfy!.configurationJson)).not.toHaveProperty('password')
     expect((await screen.findByRole('status')).textContent).toContain('Secrets stay stored')
+  })
+
+  it('reports a successful saved-provider test when the API returns an empty body', async () => {
+    vi.spyOn(api, 'getNotifications').mockResolvedValue({ configurations: [
+      {
+        id: 4, provider: 'webhook', enabled: true, hasConfiguration: true, updatedAt: '',
+        serverUrl: null, topic: null, priority: null, tags: null, method: 'PUT',
+        hasUrl: true, hasHeaders: true, hasCredentials: false,
+      },
+    ] })
+    const test = vi.spyOn(api, 'testNotification').mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderWithClient(<NotificationsPanel />)
+
+    await user.click((await screen.findAllByRole('button', { name: 'Send test' }))[1])
+
+    await waitFor(() => expect(test).toHaveBeenCalledWith({ id: 4 }))
+    expect((await screen.findByRole('status')).textContent).toContain('Test notification sent.')
   })
 })
 

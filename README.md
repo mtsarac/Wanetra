@@ -78,12 +78,22 @@ All `nextRuns` timestamps are UTC. A run whose time has already passed is
 skipped, it's never caught up.
 
 Fresh installs start with an enabled 30% download-baseline alert. The baseline
-uses ten successful historical samples from before the current measurement;
-three consecutive unhealthy measurements (including speed-test execution
-failures) open an incident, and two healthy measurements recover it. A cancelled
-run does not count. Configure notifications separately. Pending delivery retries
-automatically once per minute; the event is marked sent after at least one
-enabled provider accepts the notification.
+uses ten successful historical samples from before the current measurement.
+Three consecutive network failures, unusable measurements, or threshold
+violations open an incident; two healthy measurements recover it. Local
+process/CLI failures and cancelled runs do not affect WAN alert state. Each
+result reports a `failureKind`.
+
+Disabling the alert rule closes an open incident as `disabled`, records a closure
+reason, and clears the degradation gauge. Re-enabling does not reopen that event.
+
+Notification destinations enabled when an incident opens are snapshotted for
+that event. Delivery status and retries are tracked per destination; one
+successful provider is not resent when another fails. Recovery is sent only
+after that destination's opening message succeeds. A provider can receive a
+duplicate if it accepted a request but Wanetra stopped before recording success.
+Notification reads expose safe metadata only; secrets and webhook URLs are not
+returned. Blank fields preserve saved values, and edits keep the destination ID.
 
 LibreSpeed CLI does not report packet loss. The metric remains unavailable
 (Prometheus reports `NaN`); packet-loss conditions cannot trigger alerts, and

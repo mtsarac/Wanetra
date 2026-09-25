@@ -22,7 +22,7 @@ const emptyNtfy: NtfyDraft = {
   serverUrl: '', topic: '', username: '', password: '', token: '', priority: '', tags: '',
 }
 
-const emptyWebhook: WebhookDraft = { url: '', method: 'POST', headersJson: '' }
+const emptyWebhook: WebhookDraft = { url: '', method: '', headersJson: '' }
 
 function ntfyJson(draft: NtfyDraft): string {
   const trimmedTags = draft.tags.trim() === ''
@@ -110,28 +110,28 @@ export default function NotificationsPanel() {
       <div className="notify-grid">
         <div className="notify-card">
           <label className="check"><input type="checkbox" checked={ntfyEnabled} onChange={(e) => setNtfyOverride(e.target.checked)} /> ntfy {ntfyStored?.hasConfiguration && <small>· configured</small>}</label>
-          <label>Server URL<input value={ntfy.serverUrl} onChange={(e) => setNtfy((prev) => ({ ...prev, serverUrl: e.target.value }))} placeholder={ntfyStored?.hasConfiguration ? '(stored)' : 'https://ntfy.sh'} inputMode="url" /></label>
-          <label>Topic<input value={ntfy.topic} onChange={(e) => setNtfy((prev) => ({ ...prev, topic: e.target.value }))} placeholder={ntfyStored?.hasConfiguration ? '(stored)' : 'wanetra'} /></label>
-          <label>Token (optional)<input type="password" value={ntfy.token} onChange={(e) => setNtfy((prev) => ({ ...prev, token: e.target.value }))} placeholder="Bearer token" autoComplete="off" /></label>
+          <label>Server URL<input value={ntfy.serverUrl} onChange={(e) => setNtfy((prev) => ({ ...prev, serverUrl: e.target.value }))} placeholder={ntfyStored?.serverUrl ?? 'https://ntfy.sh'} inputMode="url" /></label>
+          <label>Topic<input value={ntfy.topic} onChange={(e) => setNtfy((prev) => ({ ...prev, topic: e.target.value }))} placeholder={ntfyStored?.topic ?? 'wanetra'} /></label>
+          <label>Token (optional)<input type="password" value={ntfy.token} onChange={(e) => setNtfy((prev) => ({ ...prev, token: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : 'Bearer token'} autoComplete="off" /></label>
           <div className="row">
-            <label>Username<input value={ntfy.username} onChange={(e) => setNtfy((prev) => ({ ...prev, username: e.target.value }))} placeholder="(stored)" autoComplete="off" /></label>
-            <label>Password<input type="password" value={ntfy.password} onChange={(e) => setNtfy((prev) => ({ ...prev, password: e.target.value }))} placeholder="Basic auth" autoComplete="off" /></label>
+            <label>Username<input value={ntfy.username} onChange={(e) => setNtfy((prev) => ({ ...prev, username: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : ''} autoComplete="off" /></label>
+            <label>Password<input type="password" value={ntfy.password} onChange={(e) => setNtfy((prev) => ({ ...prev, password: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : 'Basic auth'} autoComplete="off" /></label>
           </div>
           <div className="row">
-            <label>Priority<input value={ntfy.priority} onChange={(e) => setNtfy((prev) => ({ ...prev, priority: e.target.value }))} placeholder="default" /></label>
-            <label>Tags (comma)<input value={ntfy.tags} onChange={(e) => setNtfy((prev) => ({ ...prev, tags: e.target.value }))} placeholder="warning" /></label>
+            <label>Priority<input value={ntfy.priority} onChange={(e) => setNtfy((prev) => ({ ...prev, priority: e.target.value }))} placeholder={ntfyStored?.priority ?? 'default'} /></label>
+            <label>Tags (comma)<input value={ntfy.tags} onChange={(e) => setNtfy((prev) => ({ ...prev, tags: e.target.value }))} placeholder={ntfyStored?.tags ?? 'warning'} /></label>
           </div>
           <button disabled={test.isPending} onClick={() => test.mutate({ provider: 'ntfy', draft: ntfyJson(ntfy), required: ['serverUrl', 'topic'] })}>Send test</button>
         </div>
         <div className="notify-card">
           <label className="check"><input type="checkbox" checked={webhookEnabled} onChange={(e) => setWebhookOverride(e.target.checked)} /> Webhook {webhookStored?.hasConfiguration && <small>· configured</small>}</label>
-          <label>URL<input value={webhook.url} onChange={(e) => setWebhook((prev) => ({ ...prev, url: e.target.value }))} placeholder={webhookStored?.hasConfiguration ? '(stored)' : 'https://example.com/hook'} inputMode="url" /></label>
+          <label>URL<input value={webhook.url} onChange={(e) => setWebhook((prev) => ({ ...prev, url: e.target.value }))} placeholder={webhookStored?.hasUrl ? '(stored)' : 'https://example.com/hook'} inputMode="url" /></label>
           <label>Method
-            <select value={webhook.method} onChange={(e) => setWebhook((prev) => ({ ...prev, method: e.target.value }))}>
-              <option>GET</option><option>POST</option><option>PUT</option>
+            <select value={webhook.method || webhookStored?.method || 'POST'} onChange={(e) => setWebhook((prev) => ({ ...prev, method: e.target.value }))}>
+              <option value="">(stored/default)</option><option>GET</option><option>POST</option><option>PUT</option>
             </select>
           </label>
-          <label>Headers JSON (optional)<textarea value={webhook.headersJson} onChange={(e) => setWebhook((prev) => ({ ...prev, headersJson: e.target.value }))} placeholder='{"X-Token": "..."}' rows={3} spellCheck={false} /></label>
+          <label>Headers JSON (optional)<textarea value={webhook.headersJson} onChange={(e) => setWebhook((prev) => ({ ...prev, headersJson: e.target.value }))} placeholder={webhookStored?.hasHeaders ? '(stored; blank keeps existing headers)' : '{"X-Token": "..."}'} rows={3} spellCheck={false} /></label>
           <button disabled={test.isPending} onClick={() => test.mutate({ provider: 'webhook', draft: webhookJson(webhook), required: ['url'] })}>Send test</button>
         </div>
       </div>

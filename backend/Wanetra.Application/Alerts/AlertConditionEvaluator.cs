@@ -5,14 +5,14 @@ namespace Wanetra.Application.Alerts;
 
 public enum AlertMeasurementOutcome
 {
+    Ignored,
     Healthy,
     Unhealthy,
-    ExecutionFailure,
 }
 
 public sealed record AlertEvaluationResult(AlertMeasurementOutcome Outcome, string Reason)
 {
-    public bool Unhealthy => Outcome != AlertMeasurementOutcome.Healthy;
+    public bool Unhealthy => Outcome == AlertMeasurementOutcome.Unhealthy;
 }
 
 public static class AlertConditionEvaluator
@@ -24,7 +24,12 @@ public static class AlertConditionEvaluator
     {
         if (!result.Success)
         {
-            return new AlertEvaluationResult(AlertMeasurementOutcome.ExecutionFailure, "speed test failed");
+            return result.FailureKind switch
+            {
+                SpeedTestFailureKind.NetworkFailure => new AlertEvaluationResult(AlertMeasurementOutcome.Unhealthy, "network test failed"),
+                SpeedTestFailureKind.MeasurementFailure => new AlertEvaluationResult(AlertMeasurementOutcome.Unhealthy, "measurement unavailable"),
+                _ => new AlertEvaluationResult(AlertMeasurementOutcome.Ignored, string.Empty),
+            };
         }
 
         var reasons = new List<string>();

@@ -14,13 +14,10 @@ public class AlertStatePersistenceTests
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<WanetraDbContext>();
-            db.AlertStates.Add(new AlertState
-            {
-                Id = 1,
-                ConsecutiveUnhealthyMeasurements = 2,
-                ConsecutiveHealthyMeasurements = 1,
-                UpdatedAt = DateTime.UtcNow,
-            });
+            var state = await db.AlertStates.SingleAsync();
+            state.ConsecutiveUnhealthyMeasurements = 2;
+            state.ConsecutiveHealthyMeasurements = 1;
+            state.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
         }
 

@@ -46,12 +46,32 @@ public sealed record AlertRuleUpdateRequest(
     int ConsecutiveFailuresRequired,
     int ConsecutiveRecoveriesRequired);
 
+public sealed record NotificationDeliveryResponse(
+    string Provider,
+    string Trigger,
+    string Status,
+    int AttemptCount,
+    DateTime? LastAttemptAt,
+    DateTime? DeliveredAt,
+    string? LastErrorSummary)
+{
+    public static NotificationDeliveryResponse From(NotificationDelivery delivery) => new(
+        delivery.Provider,
+        delivery.Trigger.ToString().ToLowerInvariant(),
+        delivery.Status.ToString().ToLowerInvariant(),
+        delivery.AttemptCount,
+        delivery.LastAttemptAt,
+        delivery.DeliveredAt,
+        delivery.LastErrorSummary);
+}
+
 public sealed record DegradationEventResponse(
     long Id,
     DateTime StartedAt,
     DateTime? EndedAt,
     string Status,
     string Reason,
+    string? ClosureReason,
     double? BaselineDownloadMbps,
     double? WorstDownloadMbps,
     double? BaselineUploadMbps,
@@ -60,7 +80,8 @@ public sealed record DegradationEventResponse(
     double? MaxJitterMs,
     double? MaxPacketLossPercent,
     bool NotificationSent,
-    bool RecoveryNotificationSent)
+    bool RecoveryNotificationSent,
+    IReadOnlyList<NotificationDeliveryResponse> NotificationDeliveries)
 {
     public static DegradationEventResponse From(DegradationEvent degradationEvent) => new(
         degradationEvent.Id,
@@ -68,6 +89,7 @@ public sealed record DegradationEventResponse(
         degradationEvent.EndedAt,
         degradationEvent.Status.ToString().ToLowerInvariant(),
         degradationEvent.Reason,
+        degradationEvent.ClosureReason,
         degradationEvent.BaselineDownloadMbps,
         degradationEvent.WorstDownloadMbps,
         degradationEvent.BaselineUploadMbps,
@@ -76,7 +98,12 @@ public sealed record DegradationEventResponse(
         degradationEvent.MaxJitterMs,
         degradationEvent.MaxPacketLossPercent,
         degradationEvent.NotificationSent,
-        degradationEvent.RecoveryNotificationSent);
+        degradationEvent.RecoveryNotificationSent,
+        degradationEvent.NotificationDeliveries
+            .OrderBy(delivery => delivery.Trigger)
+            .ThenBy(delivery => delivery.ConfigurationId)
+            .Select(NotificationDeliveryResponse.From)
+            .ToList());
 }
 
 public sealed record ActiveAlertResponse(
@@ -87,7 +114,8 @@ public sealed record ActiveAlertResponse(
     double? BaselineDownloadMbps,
     double? WorstDownloadMbps,
     double? BaselineUploadMbps,
-    double? WorstUploadMbps)
+    double? WorstUploadMbps,
+    IReadOnlyList<NotificationDeliveryResponse> NotificationDeliveries)
 {
     public static ActiveAlertResponse From(DegradationEvent degradationEvent) => new(
         degradationEvent.Id,
@@ -97,5 +125,10 @@ public sealed record ActiveAlertResponse(
         degradationEvent.BaselineDownloadMbps,
         degradationEvent.WorstDownloadMbps,
         degradationEvent.BaselineUploadMbps,
-        degradationEvent.WorstUploadMbps);
+        degradationEvent.WorstUploadMbps,
+        degradationEvent.NotificationDeliveries
+            .Where(delivery => delivery.Trigger == NotificationTrigger.Opened)
+            .OrderBy(delivery => delivery.ConfigurationId)
+            .Select(NotificationDeliveryResponse.From)
+            .ToList());
 }

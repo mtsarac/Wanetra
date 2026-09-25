@@ -30,16 +30,55 @@ public class AlertConditionEvaluatorTests
     }
 
     [Fact]
-    public void Failed_measurement_is_a_distinct_unhealthy_execution_failure()
+    public void Network_failure_is_unhealthy_for_alerting()
     {
         var result = AlertConditionEvaluator.Evaluate(
             new AlertRule { Name = "rule", MinDownloadMbps = 100 },
-            new SpeedTestResult { Engine = "test", Success = false, DownloadMbps = 1 },
+            new SpeedTestResult
+            {
+                Engine = "test",
+                Success = false,
+                FailureKind = SpeedTestFailureKind.NetworkFailure,
+                DownloadMbps = 1,
+            },
             Baseline());
 
-        Assert.Equal(AlertMeasurementOutcome.ExecutionFailure, result.Outcome);
+        Assert.Equal(AlertMeasurementOutcome.Unhealthy, result.Outcome);
         Assert.True(result.Unhealthy);
-        Assert.Equal("speed test failed", result.Reason);
+        Assert.Equal("network test failed", result.Reason);
+    }
+    [Fact]
+    public void Measurement_failure_is_unhealthy_for_alerting()
+    {
+        var result = AlertConditionEvaluator.Evaluate(
+            new AlertRule { Name = "rule" },
+            new SpeedTestResult
+            {
+                Engine = "test",
+                Success = false,
+                FailureKind = SpeedTestFailureKind.MeasurementFailure,
+            },
+            Baseline());
+
+        Assert.Equal(AlertMeasurementOutcome.Unhealthy, result.Outcome);
+        Assert.Equal("measurement unavailable", result.Reason);
+    }
+
+    [Fact]
+    public void Local_execution_failure_is_ignored_by_alerting()
+    {
+        var result = AlertConditionEvaluator.Evaluate(
+            new AlertRule { Name = "rule", MinDownloadMbps = 100 },
+            new SpeedTestResult
+            {
+                Engine = "test",
+                Success = false,
+                FailureKind = SpeedTestFailureKind.LocalExecutionFailure,
+            },
+            Baseline());
+
+        Assert.Equal(AlertMeasurementOutcome.Ignored, result.Outcome);
+        Assert.False(result.Unhealthy);
     }
 
     [Fact]

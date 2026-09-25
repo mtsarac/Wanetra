@@ -23,6 +23,7 @@ public sealed record SpeedTestResultResponse(
     DateTime Timestamp,
     string Engine,
     bool Success,
+    string? FailureKind,
     double? DownloadMbps,
     double? UploadMbps,
     double? LatencyMs,
@@ -41,6 +42,13 @@ public sealed record SpeedTestResultResponse(
         result.Timestamp,
         result.Engine,
         result.Success,
+        result.FailureKind?.ToString() switch
+        {
+            nameof(SpeedTestFailureKind.NetworkFailure) => "networkFailure",
+            nameof(SpeedTestFailureKind.MeasurementFailure) => "measurementFailure",
+            nameof(SpeedTestFailureKind.LocalExecutionFailure) => "localExecutionFailure",
+            _ => null,
+        },
         result.DownloadMbps,
         result.UploadMbps,
         result.LatencyMs,

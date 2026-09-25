@@ -44,7 +44,38 @@ public class AlertEvaluationServiceTests
     }
 
     [Fact]
-    public async Task Failure_then_healthy_measurement_resets_unhealthy_counter()
+    public async Task Network_timeout_counts_toward_consecutive_unhealthy_measurements()
+    {
+        await using var factory = new WanetraApiFactory();
+        await SeedAsync(factory, failures: 2, recoveries: 2);
+
+        await EvaluateInNewScope(factory, FailedResult("timed out", SpeedTestFailureKind.NetworkFailure));
+        await EvaluateInNewScope(factory, FailedResult("timed out", SpeedTestFailureKind.NetworkFailure));
+
+        using var scope = factory.Services.CreateScope();
+        var degradationEvent = await scope.ServiceProvider.GetRequiredService<WanetraDbContext>().DegradationEvents.SingleAsync();
+        Assert.Equal(DegradationStatus.Active, degradationEvent.Status);
+        Assert.Equal("network test failed", degradationEvent.Reason);
+    }
+
+    [Fact]
+    public async Task Local_execution_failure_does_not_advance_or_recover_an_open_incident()
+    {
+        await using var factory = new WanetraApiFactory();
+        await SeedAsync(factory, failures: 1, recoveries: 2);
+        await EvaluateInNewScope(factory, FailedResult("connection refused", SpeedTestFailureKind.NetworkFailure));
+        await EvaluateInNewScope(factory, FailedResult("executable missing", SpeedTestFailureKind.LocalExecutionFailure));
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WanetraDbContext>();
+        var degradationEvent = await db.DegradationEvents.SingleAsync();
+        Assert.Equal(DegradationStatus.Active, degradationEvent.Status);
+        Assert.Equal(1, degradationEvent.ConsecutiveUnhealthyMeasurements);
+        Assert.Equal(0, degradationEvent.ConsecutiveHealthyMeasurements);
+        Assert.Null(degradationEvent.EndedAt);
+    }
+    [Fact]
+    public async Task Healthy_result_resets_pending_network_failures()
     {
         await using var factory = new WanetraApiFactory();
         await SeedAsync(factory, failures: 2, recoveries: 2);
@@ -73,7 +104,7 @@ public class AlertEvaluationServiceTests
         {
             var degradationEvent = await scope.ServiceProvider.GetRequiredService<WanetraDbContext>().DegradationEvents.SingleAsync();
             Assert.Equal(DegradationStatus.Recovering, degradationEvent.Status);
-            Assert.Equal("speed test failed", degradationEvent.Reason);
+            Assert.Equal("network test failed", degradationEvent.Reason);
             Assert.Equal(0, degradationEvent.ConsecutiveUnhealthyMeasurements);
             Assert.Equal(1, degradationEvent.ConsecutiveHealthyMeasurements);
             Assert.Null(degradationEvent.WorstDownloadMbps);
@@ -134,11 +165,14 @@ public class AlertEvaluationServiceTests
         Timestamp = DateTime.UtcNow,
         DownloadMbps = download,
     };
-    private static SpeedTestResult FailedResult(string errorMessage) => new()
-    {
-        Engine = "test",
-        Success = false,
-        ErrorMessage = errorMessage,
-        Timestamp = DateTime.UtcNow,
-    };
+    private static SpeedTestResult FailedResult(
+        string errorMessage,
+        SpeedTestFailureKind failureKind = SpeedTestFailureKind.NetworkFailure) => new()
+        {
+            Engine = "test",
+            Success = false,
+            FailureKind = failureKind,
+            ErrorMessage = errorMessage,
+            Timestamp = DateTime.UtcNow,
+        };
 }
