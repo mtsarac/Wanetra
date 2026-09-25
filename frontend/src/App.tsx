@@ -6,6 +6,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, getHistory, type MetricBaseline, type SpeedTestResult } from './lib/api'
+import { Button } from './components/ui/button'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -32,13 +33,13 @@ function Chart({ results }: { results: SpeedTestResult[] }) {
   const option = useMemo<EChartsOption>(() => ({
     animation: false,
     tooltip: { trigger: 'axis' },
-    legend: { bottom: 0, textStyle: { color: '#a1b6bb' } },
+    legend: { bottom: 0, textStyle: { color: '#787774', fontFamily: 'monospace' } },
     grid: { left: 45, right: 20, top: 18, bottom: 42 },
-    xAxis: { type: 'time', axisLabel: { color: '#a1b6bb' }, axisLine: { lineStyle: { color: '#29444c' } } },
-    yAxis: { type: 'value', axisLabel: { color: '#a1b6bb' }, splitLine: { lineStyle: { color: '#29444c' } } },
+    xAxis: { type: 'time', axisLabel: { color: '#787774' }, axisLine: { lineStyle: { color: '#eaeaea' } } },
+    yAxis: { type: 'value', axisLabel: { color: '#787774' }, splitLine: { lineStyle: { color: '#eaeaea' } } },
     series: [
-      { name: 'Download', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#83ddc8' }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
-      { name: 'Upload', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#83badb' }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
+      { name: 'Download', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#1f6c9f' }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
+      { name: 'Upload', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#346538' }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
     ],
   }), [results])
 
@@ -61,17 +62,17 @@ function QualityChart({ results }: { results: SpeedTestResult[] }) {
     return {
       animation: false,
       tooltip: { trigger: 'axis' },
-      legend: { bottom: 0, textStyle: { color: '#a1b6bb' } },
+      legend: { bottom: 0, textStyle: { color: '#787774', fontFamily: 'monospace' } },
       grid: { left: 48, right: 54, top: 18, bottom: 42 },
-      xAxis: { type: 'time', axisLabel: { color: '#a1b6bb' }, axisLine: { lineStyle: { color: '#29444c' } } },
+      xAxis: { type: 'time', axisLabel: { color: '#787774' }, axisLine: { lineStyle: { color: '#eaeaea' } } },
       yAxis: [
-        { type: 'value', name: 'ms', axisLabel: { color: '#a1b6bb' }, splitLine: { lineStyle: { color: '#29444c' } } },
-        { type: 'value', name: '%', position: 'right', axisLabel: { color: '#a1b6bb' }, splitLine: { show: false } },
+        { type: 'value', name: 'ms', axisLabel: { color: '#787774' }, splitLine: { lineStyle: { color: '#eaeaea' } } },
+        { type: 'value', name: '%', position: 'right', axisLabel: { color: '#787774' }, splitLine: { show: false } },
       ],
       series: [
-        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#f0bf75' }, data: chronological.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
-        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#c7bce2' }, data: chronological.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
-        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, yAxisIndex: 1, itemStyle: { color: '#f0a69c' }, data: chronological.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
+        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#956400' }, data: chronological.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
+        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#695b82' }, data: chronological.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
+        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, yAxisIndex: 1, itemStyle: { color: '#9f2f2d' }, data: chronological.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
       ],
     }
   }, [results])
@@ -160,7 +161,7 @@ function App() {
         <Metric label="Latency" value={formatNumber(latest.data?.latencyMs, 'ms')} tone="white" />
         <Metric label="Jitter" value={formatNumber(latest.data?.jitterMs, 'ms')} tone="violet" />
         <Metric label="Packet loss (not reported by LibreSpeed)" value={formatNumber(latest.data?.packetLossPercent, '%')} tone="rose" />
-        <div className="action-metric"><span>Last test · {formatTime(latest.data?.timestamp)}</span><button disabled={status.data?.state === 'running' || run.isPending} onClick={() => run.mutate()}>{run.isPending || status.data?.state === 'running' ? 'Running…' : 'Run speed test'}</button></div>
+        <div className="action-metric"><span>Last test · {formatTime(latest.data?.timestamp)}</span><Button disabled={status.data?.state === 'running' || run.isPending} onClick={() => run.mutate()}>{run.isPending || status.data?.state === 'running' ? 'Running…' : 'Run speed test'}</Button></div>
       </section>
       <section className="panel baseline">
         <div className="panel-head"><div><p className="kicker">Seven-day baseline</p><h2>Current vs baseline</h2></div><span className="muted">{baseline.isLoading ? 'Loading…' : 'Successful measurements only'}</span></div>
@@ -173,7 +174,7 @@ function App() {
         <div className="panel chart-panel">
           <div className="panel-head">
             <div><p className="kicker">Throughput</p><h2>Speed history</h2></div>
-            <div className="range-tabs">{([...Object.keys(ranges), 'Custom'] as Range[]).map((item) => <button className={range === item ? 'selected' : ''} key={item} onClick={() => setRange(item)}>{item}</button>)}</div>
+            <div className="range-tabs">{([...Object.keys(ranges), 'Custom'] as Range[]).map((item) => <Button variant="ghost" size="sm" className={range === item ? 'selected' : ''} key={item} onClick={() => setRange(item)}>{item}</Button>)}</div>
           </div>
           {range === 'Custom' && <div className="chart-dates"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
           {history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <Chart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}

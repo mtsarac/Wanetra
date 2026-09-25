@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './lib/api'
+import { Button } from './components/ui/button'
 
 type NtfyDraft = {
   serverUrl: string
@@ -123,7 +124,7 @@ export default function NotificationsPanel() {
             <label>Priority<input value={ntfy.priority} onChange={(e) => setNtfy((prev) => ({ ...prev, priority: e.target.value }))} placeholder={ntfyStored?.priority ?? 'default'} /></label>
             <label>Tags (comma)<input value={ntfy.tags} onChange={(e) => setNtfy((prev) => ({ ...prev, tags: e.target.value }))} placeholder={ntfyStored?.tags ?? 'warning'} /></label>
           </div>
-          <button disabled={test.isPending} onClick={() => test.mutate({ provider: 'ntfy', draft: ntfyJson(ntfy), required: ['serverUrl', 'topic'] })}>Send test</button>
+          <Button variant="outline" disabled={test.isPending} onClick={() => test.mutate({ provider: 'ntfy', draft: ntfyJson(ntfy), required: ['serverUrl', 'topic'] })}>Send test</Button>
         </div>
         <div className="notify-card">
           <label className="check"><input type="checkbox" checked={webhookEnabled} onChange={(e) => setWebhookOverride(e.target.checked)} /> Webhook {webhookStored?.hasConfiguration && <small>· configured</small>}</label>
@@ -134,10 +135,10 @@ export default function NotificationsPanel() {
             </select>
           </label>
           <label>Headers JSON (optional)<textarea value={webhook.headersJson} onChange={(e) => setWebhook((prev) => ({ ...prev, headersJson: e.target.value }))} placeholder={webhookStored?.hasHeaders ? '(stored; blank keeps existing headers)' : '{"X-Token": "..."}'} rows={3} spellCheck={false} /></label>
-          <button disabled={test.isPending} onClick={() => test.mutate({ provider: 'webhook', draft: webhookJson(webhook), required: ['url'] })}>Send test</button>
+          <Button variant="outline" disabled={test.isPending} onClick={() => test.mutate({ provider: 'webhook', draft: webhookJson(webhook), required: ['url'] })}>Send test</Button>
         </div>
       </div>
-      <button className="save" disabled={save.isPending} onClick={() => { save.mutate() }}>{save.isPending ? 'Saving…' : 'Save notifications'}</button>
+      <Button className="save" disabled={save.isPending} onClick={() => { save.mutate() }}>{save.isPending ? 'Saving…' : 'Save notifications'}</Button>
       </section>
     </main>
   )

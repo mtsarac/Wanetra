@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Schedule } from './lib/api'
+import { Button } from './components/ui/button'
 
 type ScheduleDraft = Pick<Schedule, 'enabled' | 'cronExpression' | 'timezone'>
 
@@ -45,7 +46,7 @@ export default function ScheduleSettings() {
             <label><span>Cron expression</span><input value={values.cronExpression} onChange={(event) => setDraft({ ...values, cronExpression: event.target.value })} placeholder="*/30 * * * *" required /></label>
             <label><span>Timezone</span><input value={values.timezone} onChange={(event) => setDraft({ ...values, timezone: event.target.value })} placeholder="Europe/Istanbul" required /></label>
           </div>
-          <div className="form-actions"><button type="submit" disabled={save.isPending || schedule.isLoading}>{save.isPending ? 'Saving…' : 'Save schedule'}</button>{message && <span className={save.isError ? 'failure' : 'success'} role="status">{message}</span>}</div>
+          <div className="form-actions"><Button type="submit" disabled={save.isPending || schedule.isLoading}>{save.isPending ? 'Saving…' : 'Save schedule'}</Button>{message && <span className={save.isError ? 'failure' : 'success'} role="status">{message}</span>}</div>
         </form>
       )}
       {schedule.data?.enabled && <div className="next-runs"><strong>Upcoming runs</strong>{schedule.data.nextRuns.length ? <ol>{schedule.data.nextRuns.map((run) => <li key={run}>{displayTime(run)}</li>)}</ol> : <p className="muted">No upcoming run is currently available.</p>}</div>}

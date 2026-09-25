@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type SpeedTestResult } from './lib/api'
+import { Button } from './components/ui/button'
 
 const initialFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 const today = new Date().toISOString().slice(0, 10)
@@ -79,7 +80,7 @@ export default function HistoryPage() {
                 <Fragment key={result.id}>
                   <tr>
                     <td>{formatTime(result.timestamp)}</td><td>{metric(result.downloadMbps, 'Mbps')}</td><td>{metric(result.uploadMbps, 'Mbps')}</td><td>{metric(result.latencyMs, 'ms')}</td><td>{metric(result.jitterMs, 'ms')}</td><td>{metric(result.packetLossPercent, '%')}</td><td>{result.serverName ?? '—'}</td><td>{result.engine}</td><td className={result.success ? 'success' : 'failure'}>{result.success ? 'Success' : 'Failed'}</td>
-                    <td><button className="text-button" onClick={() => setSelectedId(selectedId === result.id ? null : result.id)}>{selectedId === result.id ? 'Hide' : 'Details'}</button></td>
+                    <td><Button variant="ghost" size="sm" onClick={() => setSelectedId(selectedId === result.id ? null : result.id)}>{selectedId === result.id ? 'Hide' : 'Details'}</Button></td>
                   </tr>
                   {selectedId === result.id && <tr><td colSpan={10}><Details result={result} /></td></tr>}
                 </Fragment>
@@ -87,7 +88,7 @@ export default function HistoryPage() {
             </table>
           </div>
         ) : <div className="empty">No measurements match these filters.</div>}
-        {query.data && query.data.totalPages > 1 && <div className="pagination"><span>Page {query.data.page} of {query.data.totalPages}</span><div><button disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</button><button disabled={page >= query.data!.totalPages} onClick={() => setPage((current) => current + 1)}>Next</button></div></div>}
+        {query.data && query.data.totalPages > 1 && <div className="pagination"><span>Page {query.data.page} of {query.data.totalPages}</span><div><Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page >= query.data!.totalPages} onClick={() => setPage((current) => current + 1)}>Next</Button></div></div>}
       </section>
     </main>
   )
