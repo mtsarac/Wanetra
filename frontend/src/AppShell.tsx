@@ -11,8 +11,9 @@ const navigation = [
 export default function AppShell() {
   return (
     <div className="shell">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="app-header">
-        <NavLink className="brand" to="/" end><span className="brand-mark">W</span><span><strong>WANETRA</strong><small>WAN HEALTH / SELF-HOSTED</small></span></NavLink>
+        <NavLink className="brand" to="/" end><span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M3 18h6l4-9 5 15 4-8h7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span><span><strong>wanetra</strong><small>WAN health monitor</small></span></NavLink>
         <nav aria-label="Main navigation">
           {navigation.map(({ to, label, end }) => <NavLink key={to} to={to} end={end}>{label}</NavLink>)}
         </nav>
