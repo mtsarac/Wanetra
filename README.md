@@ -157,9 +157,9 @@ the application's non-root ownership. Set `DataRetention__Days` in `.env` to
 change the 365-day default.
 
 Maintainers: pushing a `vX.Y.Z` tag triggers the multi-architecture GHCR build.
-The package must be set to **Public** in GitHub package settings after its first
-publication to permit anonymous pulls. Release versions are tagged `X.Y.Z`,
-`X.Y`, and `latest`; deployments should pin `X.Y.Z` instead of `latest`.
+Verify that the package is **Public** and accepts anonymous pulls; if a new
+package is private, change its visibility in GitHub package settings. Releases
+are tagged `X.Y.Z`, `X.Y`, and `latest`; deployments should pin `X.Y.Z`.
 
 ## License
 
