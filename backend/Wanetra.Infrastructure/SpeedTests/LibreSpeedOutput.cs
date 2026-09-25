@@ -1,9 +1,5 @@
 namespace Wanetra.Infrastructure.SpeedTests;
 
-/// <summary>
-/// Shape of one entry in the JSON array that <c>librespeed-cli --json</c> prints.
-/// Speeds are Mbps, ping and jitter are milliseconds.
-/// </summary>
 internal sealed class LibreSpeedOutput
 {
     public double Download { get; set; }

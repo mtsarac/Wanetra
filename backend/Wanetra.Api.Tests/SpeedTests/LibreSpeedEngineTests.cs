@@ -33,7 +33,6 @@ public class LibreSpeedEngineTests
         Assert.Equal("203.0.113.10", result.ExternalIp);
         Assert.Equal("AS3320 Example Telekom", result.Isp);
 
-        // LibreSpeed reports no packet loss and no server location.
         Assert.Null(result.PacketLossPercent);
         Assert.Null(result.ServerLocation);
     }

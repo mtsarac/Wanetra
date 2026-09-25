@@ -102,7 +102,6 @@ public sealed class ScheduleWorker(
 
     private async Task<bool> WaitForDueOrChangeAsync(TimeSpan delay, CancellationToken stoppingToken)
     {
-        // ponytail: cap single waits below the platform timer limit; the loop recomputes from now anyway.
         var wait = delay > MaxWait ? MaxWait : delay;
         try
         {

@@ -24,9 +24,6 @@ public static class SpeedTestEndpoints
 
     private static IResult Run(SpeedTestCoordinator coordinator, IHostApplicationLifetime lifetime)
     {
-        // A speed test takes longer than an HTTP request should, so the run is
-        // left to the coordinator and the caller polls /status. Cancelling on
-        // shutdown rather than on request completion keeps it alive afterwards.
         if (coordinator.TryStart(SpeedTestTrigger.Manual, lifetime.ApplicationStopping) is null)
         {
             return Results.Conflict(new ApiError(
@@ -101,8 +98,6 @@ public static class SpeedTestEndpoints
                 To = to?.UtcDateTime,
                 Success = success,
 
-                // Engines register themselves in lower case, and SQLite compares
-                // text case-sensitively.
                 Engine = string.IsNullOrWhiteSpace(engine) ? null : engine.Trim().ToLowerInvariant(),
                 NewestFirst = newestFirst,
                 Page = page,

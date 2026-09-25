@@ -1,0 +1,16 @@
+services:
+  wanetra:
+    image: ghcr.io/mtsarac/wanetra:${WANETRA_VERSION:-0.1.0}
+    container_name: wanetra
+    restart: unless-stopped
+    ports:
+      - "${WANETRA_BIND_ADDRESS:-127.0.0.1}:${WANETRA_PORT:-8080}:8080"
+    environment:
+      TZ: ${TZ:-Europe/Istanbul}
+      WANETRA_DATA_PATH: ${WANETRA_DATA_PATH:-/data}
+      DataRetention__Days: ${DataRetention__Days:-365}
+    volumes:
+      - wanetra-data:/data
+
+volumes:
+  wanetra-data:

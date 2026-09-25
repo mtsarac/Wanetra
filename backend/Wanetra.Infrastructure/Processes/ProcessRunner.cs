@@ -16,8 +16,6 @@ internal sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRun
             FileName = fileName,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            // Arguments are passed as a list, never through a shell, so no
-            // quoting or escaping of user input is involved.
             UseShellExecute = false,
             CreateNoWindow = true,
         };
@@ -54,7 +52,6 @@ internal sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRun
             }
         }
 
-        // The streams close once the process is gone, so these complete either way.
         var output = await standardOutput;
         var error = await standardError;
 

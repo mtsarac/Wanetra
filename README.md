@@ -130,26 +130,36 @@ bun run dev
 
 ## Docker
 
-Build and run the application locally with Docker Compose:
+To install a published release without building from source:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/mtsarac/Wanetra/v0.1.0/compose.ghcr.yml
+docker compose -f compose.ghcr.yml pull
+docker compose -f compose.ghcr.yml up -d
+```
+
+The image is `ghcr.io/mtsarac/wanetra:0.1.0` (linux/amd64 and linux/arm64).
+Set `WANETRA_VERSION` to a published version before pulling to select another
+release. For example, `WANETRA_VERSION=0.1.1 docker compose -f compose.ghcr.yml up -d`.
+The UI is available at `http://127.0.0.1:8080` by default. See [Security](#security)
+before changing the bind address.
+
+To build the image locally instead:
 
 ```sh
 cp compose.example.yml compose.yml
 docker compose up -d --build
 ```
 
-Compose builds the image for the local Docker builder's platform; the Dockerfile
-selects the matching LibreSpeed binary for that architecture. No prebuilt Wanetra
-image is required.
-
-The database lives in the Docker-managed `wanetra-data` volume mounted at
+Both Compose files use a Docker-managed `wanetra-data` volume mounted at
 `$WANETRA_DATA_PATH` (`/data` by default). Docker initializes the volume with
 the application's non-root ownership. Set `DataRetention__Days` in `.env` to
 change the 365-day default.
 
-## Project documentation
-
-- [Project plan](docs/wanetra-project-plan-human.md)
-- [Implementation plan](docs/wanetra-coding-agent-plan.md)
+Maintainers: pushing a `vX.Y.Z` tag triggers the multi-architecture GHCR build.
+The package must be set to **Public** in GitHub package settings after its first
+publication to permit anonymous pulls. Release versions are tagged `X.Y.Z`,
+`X.Y`, and `latest`; deployments should pin `X.Y.Z` instead of `latest`.
 
 ## License
 

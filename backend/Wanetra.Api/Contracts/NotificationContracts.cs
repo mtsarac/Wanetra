@@ -50,7 +50,6 @@ public sealed record NotificationConfigurationResponse(
         }
         catch (JsonException)
         {
-            // Keep malformed legacy settings out of the response.
         }
 
         return new NotificationConfigurationResponse(

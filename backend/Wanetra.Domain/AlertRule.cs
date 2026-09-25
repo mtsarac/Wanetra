@@ -6,7 +6,6 @@ public class AlertRule
     public required string Name { get; set; }
     public bool Enabled { get; set; } = true;
 
-    // Every threshold is optional; a null value disables that check.
     public double? MinDownloadMbps { get; set; }
     public double? MinUploadMbps { get; set; }
     public double? MaxLatencyMs { get; set; }
