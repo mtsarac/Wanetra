@@ -130,25 +130,29 @@ bun run dev
 
 ## Docker
 
-To install a published release without building from source:
+The root `docker-compose.yaml` starts the published image with a Docker-managed
+volume. No `.env`, local build, or host directory setup is required:
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/mtsarac/Wanetra/v0.1.0/compose.ghcr.yml
-docker compose -f compose.ghcr.yml pull
-docker compose -f compose.ghcr.yml up -d
+git clone https://github.com/mtsarac/Wanetra.git
+cd Wanetra
+docker compose up -d
 ```
 
+In an existing checkout, run `git pull --ff-only`, `docker compose pull`, and
+`docker compose up -d` to apply repository and image updates.
+
 The image is `ghcr.io/mtsarac/wanetra:0.1.0` (linux/amd64 and linux/arm64).
-Set `WANETRA_VERSION` to a published version before pulling to select another
-release. For example, `WANETRA_VERSION=0.1.1 docker compose -f compose.ghcr.yml up -d`.
-The UI is available at `http://127.0.0.1:8080` by default. See [Security](#security)
-before changing the bind address.
+To select another published version, set `WANETRA_VERSION` before
+`docker compose pull` and `docker compose up -d`. The UI is available at
+`http://127.0.0.1:8080` on the Docker host; the default bind address is
+loopback because Wanetra has no built-in authentication. See [Security](#security)
+before exposing it to a network.
 
 To build the image locally instead:
 
 ```sh
-cp compose.example.yml compose.yml
-docker compose up -d --build
+docker compose -f compose.example.yml up -d --build
 ```
 
 Both Compose files use a Docker-managed `wanetra-data` volume mounted at
