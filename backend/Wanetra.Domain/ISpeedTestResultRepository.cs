@@ -16,6 +16,9 @@ public interface ISpeedTestResultRepository
         DateTime to,
         CancellationToken cancellationToken);
 
+    /// <summary>Deletes results strictly older than the UTC cutoff and returns the number removed.</summary>
+    Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken cancellationToken);
+
     /// <summary>Reads one page of history. Never materializes the whole table.</summary>
     Task<SpeedTestResultPage> QueryAsync(SpeedTestResultQuery query, CancellationToken cancellationToken);
 }

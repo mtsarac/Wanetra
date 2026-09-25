@@ -13,6 +13,7 @@ public sealed class SpeedTestExecutor(
     ISpeedTestResultRepository repository,
     AlertEvaluationService alertEvaluationService,
     NotificationDispatcher notificationDispatcher,
+    IPrometheusMetrics metrics,
     TimeProvider timeProvider,
     ILogger<SpeedTestExecutor> logger)
 {
@@ -54,6 +55,7 @@ public sealed class SpeedTestExecutor(
         result.DurationMs = (long)timeProvider.GetElapsedTime(startedTimestamp).TotalMilliseconds;
 
         await repository.AddAsync(result, cancellationToken);
+        metrics.RecordSpeedTest(result);
 
         if (result.Success)
         {

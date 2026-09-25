@@ -7,6 +7,7 @@ namespace Wanetra.Application.Alerts;
 public sealed class AlertEvaluationService(
     IAlertStateRepository repository,
     BaselineService baselineService,
+    IPrometheusMetrics metrics,
     TimeProvider timeProvider)
 {
     public async Task<(NotificationTrigger? Trigger, long? EventId)> EvaluateAsync(
@@ -46,6 +47,7 @@ public sealed class AlertEvaluationService(
         }
 
         state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+        metrics.SetConnectionDegraded(await repository.GetOpenEventAsync(cancellationToken) is not null);
         await repository.SaveChangesAsync(cancellationToken);
 
         if (openedEvent is not null)

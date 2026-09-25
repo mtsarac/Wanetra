@@ -13,6 +13,9 @@ internal sealed class AlertStateRepository(WanetraDbContext dbContext) : IAlertS
             .OrderBy(rule => rule.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<AlertRule?> GetRuleAsync(CancellationToken cancellationToken) =>
+        dbContext.AlertRules.OrderBy(rule => rule.Id).FirstOrDefaultAsync(cancellationToken);
+
     public async Task<AlertState> GetStateAsync(CancellationToken cancellationToken)
     {
         var state = await dbContext.AlertStates.SingleOrDefaultAsync(alertState => alertState.Id == StateId, cancellationToken);
@@ -35,6 +38,15 @@ internal sealed class AlertStateRepository(WanetraDbContext dbContext) : IAlertS
 
     public Task<DegradationEvent?> GetEventAsync(long id, CancellationToken cancellationToken) =>
         dbContext.DegradationEvents.SingleOrDefaultAsync(degradationEvent => degradationEvent.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<DegradationEvent>> GetRecentEventsAsync(int count, CancellationToken cancellationToken) =>
+        await dbContext.DegradationEvents
+            .AsNoTracking()
+            .OrderByDescending(degradationEvent => degradationEvent.StartedAt)
+            .ThenByDescending(degradationEvent => degradationEvent.Id)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+    public void AddRule(AlertRule rule) => dbContext.AlertRules.Add(rule);
     public void AddEvent(DegradationEvent degradationEvent) => dbContext.DegradationEvents.Add(degradationEvent);
     public Task SaveChangesAsync(CancellationToken cancellationToken) => dbContext.SaveChangesAsync(cancellationToken);
 }

@@ -24,12 +24,21 @@ export type SpeedTestStatus = {
   errorMessage: string | null
 }
 
-type SpeedTestHistoryPage = {
+export type SpeedTestHistoryPage = {
   items: SpeedTestResult[]
   page: number
   pageSize: number
   totalCount: number
   totalPages: number
+}
+
+export type HistoryQuery = {
+  from?: Date
+  to?: Date
+  success?: boolean
+  page?: number
+  pageSize?: number
+  sort?: 'asc' | 'desc'
 }
 
 export type Schedule = {
@@ -38,6 +47,45 @@ export type Schedule = {
   timezone: string
   updatedAt: string
   nextRuns: string[]
+}
+
+export type AlertRule = {
+  id: number
+  name: string
+  enabled: boolean
+  minDownloadMbps: number | null
+  minUploadMbps: number | null
+  maxLatencyMs: number | null
+  maxJitterMs: number | null
+  maxPacketLossPercent: number | null
+  downloadBaselineDropPercent: number | null
+  uploadBaselineDropPercent: number | null
+  consecutiveFailuresRequired: number
+  consecutiveRecoveriesRequired: number
+  updatedAt: string
+}
+
+export type AlertRuleUpdate = Omit<AlertRule, 'id' | 'updatedAt'>
+
+export type DegradationEvent = {
+  id: number
+  startedAt: string
+  endedAt: string | null
+  status: 'active' | 'recovering' | 'recovered'
+  reason: string
+  baselineDownloadMbps: number | null
+  worstDownloadMbps: number | null
+  baselineUploadMbps: number | null
+  worstUploadMbps: number | null
+  maxLatencyMs: number | null
+  maxJitterMs: number | null
+  maxPacketLossPercent: number | null
+  notificationSent: boolean
+  recoveryNotificationSent: boolean
+}
+
+export type RetentionSettings = {
+  days: number
 }
 
 export type MetricBaseline = {
@@ -77,7 +125,6 @@ export type NotificationConfiguration = {
 export type NotificationConfigurationList = {
   configurations: NotificationConfiguration[]
 }
-
 export type NotificationTestTarget = { id: number } | { provider: string; configurationJson: string }
 
 type ApiError = { message?: string }
@@ -107,13 +154,33 @@ export const api = {
   getLatest,
   getStatus: () => request<SpeedTestStatus>('/api/speedtests/status'),
   getSchedule: () => request<Schedule>('/api/schedule'),
+  updateSchedule: (schedule: Pick<Schedule, 'enabled' | 'cronExpression' | 'timezone'>) =>
+    request<Schedule>('/api/schedule', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(schedule),
+    }),
   getBaseline: () => request<Baseline>('/api/baseline'),
+  getRetentionSettings: () => request<RetentionSettings>('/api/settings/retention'),
+  getAlertRule: async () => {
+    const response = await fetch('/api/alerts/rule')
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error(`Request failed (${response.status})`)
+    return response.json() as Promise<AlertRule>
+  },
+  saveAlertRule: (rule: AlertRuleUpdate) =>
+    request<AlertRule>('/api/alerts/rule', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rule),
+    }),
   getActiveAlert: async () => {
     const response = await fetch('/api/alerts/active')
     if (response.status === 404) return null
     if (!response.ok) throw new Error(`Request failed (${response.status})`)
     return response.json() as Promise<ActiveAlert>
   },
+  getDegradationEvents: (count = 20) => request<DegradationEvent[]>(`/api/alerts/events?count=${count}`),
   runSpeedTest: () => request<{ status: string }>('/api/speedtests/run', { method: 'POST' }),
   getNotifications: () => request<NotificationConfigurationList>('/api/notifications'),
   saveNotifications: (configurations: { provider: string; enabled: boolean; configurationJson: string }[]) =>
@@ -128,20 +195,26 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(target),
     }),
-  getHistoryPage: (from: Date, page: number) => request<SpeedTestHistoryPage>(
-    `/api/speedtests?${new URLSearchParams({
-      from: from.toISOString(),
-      sort: 'asc',
-      page: String(page),
-      pageSize: '200',
-    })}`,
-  ),
+  getHistoryPage: (query: HistoryQuery = {}) => {
+    const params = new URLSearchParams({
+      page: String(query.page ?? 1),
+      pageSize: String(query.pageSize ?? 50),
+      sort: query.sort ?? 'desc',
+    })
+    if (query.from) params.set('from', query.from.toISOString())
+    if (query.to) params.set('to', query.to.toISOString())
+    if (query.success != null) params.set('success', String(query.success))
+    return request<SpeedTestHistoryPage>(`/api/speedtests?${params}`)
+  },
 }
 
 export async function getHistory(from: Date): Promise<SpeedTestResult[]> {
-  const firstPage = await api.getHistoryPage(from, 1)
+  const firstPage = await api.getHistoryPage({ from, page: 1, pageSize: 200, sort: 'asc' })
   const pages = await Promise.all(
-    Array.from({ length: firstPage.totalPages - 1 }, (_, index) => api.getHistoryPage(from, index + 2)),
+    Array.from(
+      { length: firstPage.totalPages - 1 },
+      (_, index) => api.getHistoryPage({ from, page: index + 2, pageSize: 200, sort: 'asc' }),
+    ),
   )
 
   return [firstPage, ...pages].flatMap((page) => page.items)

@@ -26,6 +26,30 @@ All notable changes to Wanetra will be documented here.
   values) plus `POST /api/notifications/test`, dispatched once per
   degradation-event transition; provider failures are logged without crashing
   the run.
+- Prometheus `/metrics` endpoint with low-cardinality latest speed-test gauges,
+  completion/failure counters, HTTP metrics, and connection degradation state.
+- Configurable speed-test retention (default 365 days) with a daily background
+  cleanup that deletes only expired measurements.
+- Alert rule API: `GET`/`PUT /api/alerts/rule` stores the single editable rule
+  and validates thresholds and transition counts.
+- Production image includes checksum-verified LibreSpeed CLI 1.0.14 binaries
+  for amd64 and arm64, preserving the upstream license text.
+- Docker Compose uses a managed `/data` volume so a first run keeps the
+  application non-root without host bind-mount ownership setup.
+- Docker Compose now builds Wanetra locally for the Docker builder's platform;
+  the Dockerfile selects the matching LibreSpeed CLI instead of requiring a
+  prebuilt Wanetra image.
+- React Router pages for dashboard, filtered/paginated test history with detail
+  rows, alert-rule editing, notifications, and schedule/retention settings.
+- Dashboard includes speed and connection-quality charts with 6-hour through
+  90-day and custom time ranges.
+- Tag-triggered GHCR release workflow publishes amd64 and arm64 container
+  manifests.
+- Prometheus latest-result and degradation gauges restore from SQLite on startup.
+- Read-only alert event history at `GET /api/alerts/events?count=` and an
+  incident list alongside threshold configuration.
+- Fresh databases seed the documented 30% download-baseline degradation rule,
+  so alert reads and evaluations work before the user edits settings.
 
 ### Fixed
 
