@@ -5,9 +5,6 @@ using Wanetra.Domain;
 
 namespace Wanetra.Application.SpeedTests;
 
-/// <summary>
-/// Runs a single speed test and stores the outcome, including failures.
-/// </summary>
 public sealed class SpeedTestExecutor(
     ISpeedTestEngine engine,
     ISpeedTestResultRepository repository,

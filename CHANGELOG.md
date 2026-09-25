@@ -45,6 +45,8 @@ All notable changes to Wanetra will be documented here.
   90-day and custom time ranges.
 - Tag-triggered GHCR release workflow publishes amd64 and arm64 container
   manifests.
+- Pull-only Docker Compose example for versioned GHCR releases, with a pinned
+  default image and a configurable release version.
 - Prometheus latest-result and degradation gauges restore from SQLite on startup.
 - Read-only alert event history at `GET /api/alerts/events?count=` and an
   incident list alongside threshold configuration.

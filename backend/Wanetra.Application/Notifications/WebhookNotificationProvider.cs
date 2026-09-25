@@ -69,7 +69,6 @@ public sealed class WebhookNotificationProvider(HttpClient httpClient) : INotifi
 
         if (!string.Equals(config.Method, "GET", StringComparison.OrdinalIgnoreCase))
         {
-            // Payload carries measurements only; headers/config (including secrets) never enter the body.
             request.Content = JsonContent.Create(new
             {
                 @event = message.Event,

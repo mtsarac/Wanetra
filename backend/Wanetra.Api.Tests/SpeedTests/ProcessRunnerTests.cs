@@ -3,9 +3,6 @@ using Wanetra.Infrastructure.Processes;
 
 namespace Wanetra.Api.Tests.SpeedTests;
 
-/// <summary>
-/// Wanetra only ships Linux containers, so these use standard Linux binaries.
-/// </summary>
 public class ProcessRunnerTests
 {
     private readonly ProcessRunner runner = new(NullLogger<ProcessRunner>.Instance);

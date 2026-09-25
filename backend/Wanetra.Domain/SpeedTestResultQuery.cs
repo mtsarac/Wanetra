@@ -1,15 +1,9 @@
 namespace Wanetra.Domain;
 
-/// <summary>
-/// Filters and paging for a speed test history lookup. All filters are optional
-/// and combine with AND.
-/// </summary>
 public sealed record SpeedTestResultQuery
 {
-    /// <summary>Inclusive lower bound on <see cref="SpeedTestResult.Timestamp"/>, in UTC.</summary>
     public DateTime? From { get; init; }
 
-    /// <summary>Inclusive upper bound on <see cref="SpeedTestResult.Timestamp"/>, in UTC.</summary>
     public DateTime? To { get; init; }
 
     public bool? Success { get; init; }

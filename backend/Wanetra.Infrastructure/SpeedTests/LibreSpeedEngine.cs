@@ -8,9 +8,6 @@ using Wanetra.Infrastructure.Processes;
 
 namespace Wanetra.Infrastructure.SpeedTests;
 
-/// <summary>
-/// Wraps the librespeed-cli process. Wanetra does not measure bandwidth itself.
-/// </summary>
 internal sealed class LibreSpeedEngine(
     IProcessRunner processRunner,
     IOptions<LibreSpeedOptions> options) : ISpeedTestEngine
@@ -132,7 +129,6 @@ internal sealed class LibreSpeedEngine(
         LatencyMs = output.Ping,
         JitterMs = output.Jitter,
 
-        // LibreSpeed reports no packet loss.
         PacketLossPercent = null,
 
         ServerName = Normalize(output.Server?.Name),

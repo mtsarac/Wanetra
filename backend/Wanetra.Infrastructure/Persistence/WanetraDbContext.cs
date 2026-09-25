@@ -16,7 +16,6 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
-        // SQLite has no date type and drops DateTime.Kind; store UTC text and read it back as UTC.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
         configurationBuilder.Properties<DateTime?>().HaveConversion<UtcDateTimeConverter>();
     }

@@ -6,7 +6,6 @@ public class SpeedTestResult
     public DateTime Timestamp { get; set; }
     public required string Engine { get; set; }
 
-    // Engines may not report every metric, so measurements are nullable.
     public double? DownloadMbps { get; set; }
     public double? UploadMbps { get; set; }
     public double? LatencyMs { get; set; }

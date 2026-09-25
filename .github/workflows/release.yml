@@ -24,11 +24,13 @@ jobs:
       - uses: docker/metadata-action@v5
         id: metadata
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/mtsarac/wanetra
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/mtsarac/Wanetra
       - uses: docker/build-push-action@v6
         with:
           context: .

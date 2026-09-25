@@ -122,7 +122,6 @@ public class ScheduleCalculatorTests
     [Fact]
     public void Daily_berlin_run_shifts_utc_offset_across_spring_forward()
     {
-        // Europe/Berlin springs forward on 2026-03-29 (02:00 CET -> 03:00 CEST).
         var settings = new ScheduleSettings
         {
             Enabled = true,
@@ -150,7 +149,6 @@ public class ScheduleCalculatorTests
             CronExpression = "* * * * *",
             Timezone = "UTC",
         };
-        // Long after the schedule could have run; only future runs matter.
         var from = new DateTime(2026, 9, 18, 12, 0, 0, DateTimeKind.Utc);
 
         var runs = calculator.GetNextRuns(settings, from, 3);
