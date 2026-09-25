@@ -63,6 +63,10 @@ All notable changes to Wanetra will be documented here.
   updated chart colors, consistent form surfaces, keyboard navigation, and a
   matching application icon.
 
+- GHCR now publishes `latest` and a commit-SHA image after successful `main`
+  CI; version tags publish semantic-version images without overwriting `latest`.
+  The default Compose deployment tracks `latest` instead of `0.1.0`.
+
 - Failed speed tests now expose a failure kind. Only network failures and
   unusable measurements affect degradation state; local CLI/process failures and
   caller cancellation do not count as WAN degradation.

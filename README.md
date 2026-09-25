@@ -140,14 +140,18 @@ docker compose up -d
 ```
 
 In an existing checkout, run `git pull --ff-only`, `docker compose pull`, and
-`docker compose up -d` to apply repository and image updates.
+`docker compose up -d` to update the Compose configuration and image. Publishing
+a new image does not automatically restart an existing container.
 
-The image is `ghcr.io/mtsarac/wanetra:0.1.0` (linux/amd64 and linux/arm64).
-To select another published version, set `WANETRA_VERSION` before
-`docker compose pull` and `docker compose up -d`. The UI is available at
-`http://127.0.0.1:8080` on the Docker host; the default bind address is
-loopback because Wanetra has no built-in authentication. See [Security](#security)
-before exposing it to a network.
+The default image is `ghcr.io/mtsarac/wanetra:latest` (linux/amd64 and
+linux/arm64). `latest` moves after successful CI on `main`; it is convenient for
+homelabs but not a reproducible version. To pin a release or roll back the image,
+set `WANETRA_VERSION` to a published `X.Y.Z` or `sha-<40-character commit SHA>`
+before `docker compose pull` and `docker compose up -d`. Back up the data volume
+before upgrades: rolling back an image does not reverse SQLite migrations.
+The UI is available at `http://127.0.0.1:8080` on the Docker host; the default
+bind address is loopback because Wanetra has no built-in authentication. See
+[Security](#security) before exposing it to a network.
 
 To build the image locally instead:
 
@@ -160,10 +164,32 @@ Both Compose files use a Docker-managed `wanetra-data` volume mounted at
 the application's non-root ownership. Set `DataRetention__Days` in `.env` to
 change the 365-day default.
 
-Maintainers: pushing a `vX.Y.Z` tag triggers the multi-architecture GHCR build.
-Verify that the package is **Public** and accepts anonymous pulls; if a new
-package is private, change its visibility in GitHub package settings. Releases
-are tagged `X.Y.Z`, `X.Y`, and `latest`; deployments should pin `X.Y.Z`.
+### Image publishing
+
+Pull requests run backend and frontend CI without publishing. After a PR is
+merged into `main`, those checks run again; only when both pass does CI publish
+`latest` and a commit-labelled `sha-<full commit SHA>` image to GHCR. Image tags
+can be replaced by a rebuild; pin a digest for strict image immutability. The
+branch publish job skips an older run if `main` has advanced. CodeQL and
+dependency review remain separate repository checks on pull requests.
+
+For a named release, tag a tested commit on `main` with `vX.Y.Z` and push the
+tag. CI validates the tag and commit, reruns backend and frontend checks, then
+publishes `X.Y.Z` and `X.Y` for amd64 and arm64. Release tags do not update
+`latest`; only a passing `main` build does. For example, after merging to
+`main` and confirming its CI:
+
+```sh
+git switch main
+git pull --ff-only
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+Do not move an existing version tag. Verify the package is **Public** and
+accepts anonymous pulls; if a new package is private, change its visibility
+in GitHub package settings. Pin `X.Y.Z` for predictable deployments; the root
+Compose file opts into the moving `latest` tag by default.
 
 ## License
 
