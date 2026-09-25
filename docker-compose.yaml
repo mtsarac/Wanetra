@@ -1,6 +1,6 @@
 services:
   wanetra:
-    image: ghcr.io/mtsarac/wanetra:${WANETRA_VERSION:-0.1.0}
+    image: ghcr.io/mtsarac/wanetra:${WANETRA_VERSION:-latest}
     container_name: wanetra
     restart: unless-stopped
     ports:
