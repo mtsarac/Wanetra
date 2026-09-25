@@ -1,4 +1,7 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Wanetra.Domain;
+
 namespace Wanetra.Application.Notifications;
 
 public sealed class NotificationConfigurationService(
@@ -18,12 +21,17 @@ public sealed class NotificationConfigurationService(
         var prepared = new List<NotificationConfiguration>();
         foreach (var configuration in configurations)
         {
-            // Blank JSON keeps stored secrets (frontend never sees them); blank for a new
-            // provider means "not configured" and is skipped instead of failing validation.
+            stored.TryGetValue(configuration.Provider, out var existing);
+            if (existing is null
+                && !configuration.Enabled
+                && IsUnconfigured(configuration.Provider, configuration.ConfigurationJson))
+            {
+                continue;
+            }
             string json;
             if (string.IsNullOrWhiteSpace(configuration.ConfigurationJson))
             {
-                if (!stored.TryGetValue(configuration.Provider, out var existing))
+                if (existing is null)
                 {
                     continue;
                 }
@@ -32,7 +40,9 @@ public sealed class NotificationConfigurationService(
             }
             else
             {
-                json = configuration.ConfigurationJson;
+                json = existing is null
+                    ? configuration.ConfigurationJson
+                    : MergeBlankFields(existing.ConfigurationJson, configuration.ConfigurationJson);
             }
 
             Validate(configuration.Provider, json);
@@ -65,4 +75,69 @@ public sealed class NotificationConfigurationService(
             throw new ArgumentException($"Unknown provider: {provider}", nameof(provider));
         }
     }
+    private static bool IsUnconfigured(string provider, string configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+        {
+            return true;
+        }
+
+        JsonNode? node;
+        try
+        {
+            node = JsonNode.Parse(configurationJson);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        if (node is not JsonObject configuration)
+        {
+            return false;
+        }
+
+        return provider.ToLowerInvariant() switch
+        {
+            "ntfy" => IsBlank(configuration["serverUrl"]) && IsBlank(configuration["topic"]),
+            "webhook" => IsBlank(configuration["url"]),
+            _ => false,
+        };
+    }
+
+    private static string MergeBlankFields(string storedJson, string updateJson)
+    {
+        JsonNode? storedNode;
+        JsonNode? updateNode;
+        try
+        {
+            storedNode = JsonNode.Parse(storedJson);
+            updateNode = JsonNode.Parse(updateJson);
+        }
+        catch (JsonException)
+        {
+            throw new ArgumentException("Invalid notification configuration JSON.");
+        }
+
+        if (storedNode is not JsonObject stored || updateNode is not JsonObject update)
+        {
+            return updateJson;
+        }
+
+        foreach (var (key, storedValue) in stored)
+        {
+            if (!update.TryGetPropertyValue(key, out var updatedValue) || IsBlank(updatedValue))
+            {
+                update[key] = storedValue?.DeepClone();
+            }
+        }
+
+        return update.ToJsonString();
+    }
+
+    private static bool IsBlank(JsonNode? value) =>
+        value is null
+        || value is JsonValue jsonValue
+            && jsonValue.TryGetValue<string>(out var text)
+            && string.IsNullOrWhiteSpace(text);
 }

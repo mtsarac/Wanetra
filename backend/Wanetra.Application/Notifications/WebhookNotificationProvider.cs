@@ -35,10 +35,7 @@ public sealed record WebhookConfiguration(
             throw new ArgumentException("Webhook configuration requires url.");
         }
 
-        if (!Uri.TryCreate(options.Url.Trim(), UriKind.Absolute, out _))
-        {
-            throw new ArgumentException("Webhook url must be an absolute URL.");
-        }
+        var url = NotificationUrlValidator.RequireHttpUrl(options.Url, "Webhook URL");
 
         var method = string.IsNullOrWhiteSpace(options.Method) ? "POST" : options.Method.Trim().ToUpperInvariant();
         if (!AllowedMethods.Contains(method))
@@ -46,7 +43,7 @@ public sealed record WebhookConfiguration(
             throw new ArgumentException("Webhook method must be GET, POST, or PUT.");
         }
 
-        return new WebhookConfiguration(options.Url.Trim(), method, options.Headers ?? []);
+        return new WebhookConfiguration(url, method, options.Headers ?? []);
     }
 
     private sealed class WebhookOptions
