@@ -6,6 +6,7 @@ All notable changes to Wanetra will be documented here.
 
 ### Added
 
+- Added a persistent 21-theme light/dark palette selector and self-hosted JetBrains Mono typography.
 - Initial repository bootstrap.
 - SQLite persistence with EF Core: speed test results, schedule settings, alert
   rules, degradation events, and notification configurations.

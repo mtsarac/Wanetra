@@ -2,13 +2,16 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
-import './index.css'
+import '@fontsource-variable/jetbrains-mono'
+import { applyTheme, readTheme } from './lib/theme'
 import AlertSettings from './AlertSettings'
 import App from './App.tsx'
 import AppShell from './AppShell'
 import HistoryPage from './HistoryPage'
 import NotificationsPanel from './Notifications'
 import SettingsPage from './SettingsPage'
+import './index.css'
+applyTheme(readTheme())
 
 const queryClient = new QueryClient({
   defaultOptions: {
