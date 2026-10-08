@@ -4,25 +4,35 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
     groups:
       nuget-minor-patch:
         update-types: [minor, patch]
-  - package-ecosystem: npm
+  - package-ecosystem: bun
     directory: /frontend
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
     groups:
       frontend-minor-patch:
         update-types: [minor, patch]
     ignore:
-      # typescript-eslint refuses to load against TypeScript 7.0.
+      # typescript-eslint does not yet support TypeScript 7.
       - dependency-name: typescript
         versions: ["7.0.x"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      docker-minor-patch:
+        update-types: [minor, patch]

@@ -4,12 +4,16 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ['v*']
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
   backend:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,6 +29,7 @@ jobs:
       - run: dotnet test Wanetra.slnx --configuration Release --no-build
 
   frontend:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,38 +45,32 @@ jobs:
       - run: bun run build
 
   publish:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [backend, frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
     concurrency:
       group: wanetra-image-${{ github.ref == 'refs/heads/main' && 'latest' || github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Check release tag
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-          git fetch origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD
       - name: Check current main
-        if: github.ref == 'refs/heads/main'
         run: |
           git fetch origin main
           test "$GITHUB_SHA" = "$(git rev-parse FETCH_HEAD)"
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
+      - uses: docker/metadata-action@v6
         id: metadata
         with:
           images: ghcr.io/mtsarac/wanetra
@@ -79,11 +78,9 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=long,prefix=sha-,enable=${{ github.ref == 'refs/heads/main' }}
-            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
           labels: |
             org.opencontainers.image.source=https://github.com/mtsarac/Wanetra
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
