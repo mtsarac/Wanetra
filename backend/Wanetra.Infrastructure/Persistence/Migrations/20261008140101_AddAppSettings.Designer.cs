@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Wanetra.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using Wanetra.Infrastructure.Persistence;
 namespace Wanetra.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(WanetraDbContext))]
-    partial class WanetraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008140101_AddAppSettings")]
+    partial class AddAppSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");

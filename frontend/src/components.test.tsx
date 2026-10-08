@@ -2,14 +2,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
+import { Link, MemoryRouter, Route, Routes } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import AlertSettings from './AlertSettings'
 import App from './App'
+import AppShell from './AppShell'
 import HistoryPage from './HistoryPage'
 import NotificationsPanel from './Notifications'
 import ScheduleSettings from './ScheduleSettings'
-import { api, type AlertRule, type Schedule, type SpeedTestHistoryPage } from './lib/api'
-
+import { api } from './lib/api'
+import type { AlertRule, Schedule, SpeedTestHistoryPage } from './lib/api'
 vi.mock('echarts/core', () => ({
   use: vi.fn(),
   init: vi.fn(() => ({ setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn() })),
@@ -169,6 +171,32 @@ describe('history filters', () => {
   })
 })
 
+describe('shell navigation and semantics', () => {
+  it('updates document title and shifts focus on route navigation', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<AppShell />}>
+            <Route index element={<main id="main-content"><h1>Dashboard</h1><Link to="/history">Go to history</Link></main>} />
+            <Route path="history" element={<main id="main-content"><h1>History archive</h1></main>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(document.title).toBe('Dashboard · Wanetra')
+
+    const link = screen.getByRole('link', { name: 'Go to history' })
+    await user.click(link)
+
+    await waitFor(() => expect(document.title).toBe('History · Wanetra'))
+    const heading = screen.getByRole('heading', { level: 1, name: 'History archive' })
+    expect(document.activeElement).toBe(heading)
+  })
+})
+
 describe('dashboard', () => {
   it('shows running state after a manual speed test starts', async () => {
     setupDashboard()
@@ -189,5 +217,41 @@ describe('dashboard', () => {
     vi.spyOn(api, 'getLatest').mockRejectedValue(new Error('Latest result unavailable'))
     renderWithClient(<App />)
     expect((await screen.findByRole('alert')).textContent).toContain('Latest result unavailable')
+  })
+
+  it('provides accessible figures and summaries for charts', async () => {
+    setupDashboard()
+    vi.spyOn(api, 'getHistoryPage').mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          timestamp: '2026-09-21T12:00:00Z',
+          engine: 'librespeed',
+          success: true,
+          failureKind: null,
+          downloadMbps: 450.5,
+          uploadMbps: 95.2,
+          latencyMs: 12.0,
+          jitterMs: 2.1,
+          packetLossPercent: 0,
+          serverName: 'Local Server',
+          serverLocation: 'Local',
+          serverId: '1',
+          isp: 'ISP',
+          externalIp: '1.2.3.4',
+          durationMs: 15000,
+          errorMessage: null,
+        },
+      ],
+      page: 1,
+      pageSize: 25,
+      totalCount: 1,
+      totalPages: 1,
+    })
+    renderWithClient(<App />)
+    expect(await screen.findByRole('figure', { name: 'Throughput history figure' })).toBeTruthy()
+    expect(await screen.findByRole('figure', { name: 'Connection quality figure' })).toBeTruthy()
+    expect(screen.getByText('Throughput measurement summary')).toBeTruthy()
+    expect(screen.getByText('Connection quality measurement summary')).toBeTruthy()
   })
 })

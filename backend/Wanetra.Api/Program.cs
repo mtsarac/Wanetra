@@ -8,6 +8,7 @@ using Wanetra.Infrastructure;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Persistence;
 using Wanetra.Application.Maintenance;
+using Wanetra.Application.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,10 +18,7 @@ var dataPath = Path.GetFullPath(
 builder.Services.AddSingleton<IPrometheusMetrics, WanetraMetrics>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration, dataPath);
-builder.Services.AddOptions<DataRetentionOptions>()
-    .Bind(builder.Configuration.GetSection(DataRetentionOptions.SectionName))
-    .Validate(options => options.Days > 0, "DataRetention:Days must be greater than zero.")
-    .ValidateOnStart();
+
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<WanetraDbContext>("database", tags: ["ready"]);
 
@@ -28,6 +26,11 @@ var app = builder.Build();
 
 var metrics = app.Services.GetRequiredService<IPrometheusMetrics>();
 await app.Services.InitializeDatabaseAsync();
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var settingsService = scope.ServiceProvider.GetRequiredService<SettingsService>();
+    await settingsService.InitializeAsync(CancellationToken.None);
+}
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var results = scope.ServiceProvider.GetRequiredService<ISpeedTestResultRepository>();

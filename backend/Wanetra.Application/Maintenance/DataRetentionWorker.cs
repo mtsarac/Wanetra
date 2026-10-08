@@ -1,14 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Wanetra.Application.Settings;
 using Wanetra.Domain;
 
 namespace Wanetra.Application.Maintenance;
 
 public sealed class DataRetentionWorker(
     IServiceScopeFactory scopeFactory,
-    IOptions<DataRetentionOptions> options,
+    SettingsSnapshot settingsSnapshot,
     TimeProvider timeProvider,
     ILogger<DataRetentionWorker> logger) : BackgroundService
 {
@@ -16,7 +16,7 @@ public sealed class DataRetentionWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(CleanupInterval);
+        using var timer = new PeriodicTimer(CleanupInterval, timeProvider);
         do
         {
             try
@@ -35,9 +35,22 @@ public sealed class DataRetentionWorker(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    private async Task DeleteExpiredResultsAsync(CancellationToken cancellationToken)
+    public async Task DeleteExpiredResultsAsync(CancellationToken cancellationToken)
     {
-        var cutoff = timeProvider.GetUtcNow().UtcDateTime.AddDays(-options.Value.Days);
+        var days = settingsSnapshot.GetInt(SettingKeys.RetentionDays);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+
+        DateTime cutoff;
+        try
+        {
+            cutoff = now.AddDays(-days);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            logger.LogWarning("Retention days {Days} produces an out of range cutoff date; skipping cleanup.", days);
+            return;
+        }
+
         await using var scope = scopeFactory.CreateAsyncScope();
         var repository = scope.ServiceProvider.GetRequiredService<ISpeedTestResultRepository>();
         var deletedCount = await repository.DeleteOlderThanAsync(cutoff, cancellationToken);

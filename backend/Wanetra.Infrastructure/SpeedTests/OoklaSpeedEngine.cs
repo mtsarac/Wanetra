@@ -34,6 +34,13 @@ internal sealed class OoklaSpeedEngine(
 
     protected override async ValueTask<string> ResolveExecutableAsync(CancellationToken cancellationToken)
     {
+        if (!options.Value.AcceptLicense)
+        {
+            throw new SpeedTestExecutionException(
+                SpeedTestFailureKind.LocalExecutionFailure,
+                "The Ookla speed test engine requires license acceptance. Set speedtest.ookla.acceptLicense to true.");
+        }
+
         try
         {
             return await binary.EnsureInstalledAsync(cancellationToken);

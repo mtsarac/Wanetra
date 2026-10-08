@@ -103,42 +103,121 @@ export default function NotificationsPanel() {
 
   return (
     <main id="main-content" className="page-content">
-      <header className="page-title"><div><p className="kicker">Delivery channels</p><h1>Notifications</h1></div><span className="muted">Choose where incident updates go</span></header>
+      <header className="page-title">
+        <div>
+          <p className="kicker">Delivery channels</p>
+          <h1>Notifications</h1>
+        </div>
+        <span className="muted">Choose where incident updates go</span>
+      </header>
       <section className="panel notifications">
-      <div className="panel-head">
-        <div><p className="kicker">Incident delivery</p><h2>Degradation and recovery alerts</h2></div>
-        <span className="muted">Blank fields keep stored secrets</span>
-      </div>
-      {message && <div className="notice" role="status">{message}</div>}
-      <div className="notify-grid">
-        <div className="notify-card">
-          <label className="check"><input type="checkbox" checked={ntfyEnabled} onChange={(e) => setNtfyOverride(e.target.checked)} /> ntfy {ntfyStored?.hasConfiguration && <small>· configured</small>}</label>
-          <label>Server URL<input value={ntfy.serverUrl} onChange={(e) => setNtfy((prev) => ({ ...prev, serverUrl: e.target.value }))} placeholder={ntfyStored?.serverUrl ?? 'https://ntfy.sh'} inputMode="url" /></label>
-          <label>Topic<input value={ntfy.topic} onChange={(e) => setNtfy((prev) => ({ ...prev, topic: e.target.value }))} placeholder={ntfyStored?.topic ?? 'wanetra'} /></label>
-          <label>Token (optional)<input type="password" value={ntfy.token} onChange={(e) => setNtfy((prev) => ({ ...prev, token: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : 'Bearer token'} autoComplete="off" /></label>
-          <div className="row">
-            <label>Username<input value={ntfy.username} onChange={(e) => setNtfy((prev) => ({ ...prev, username: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : ''} autoComplete="off" /></label>
-            <label>Password<input type="password" value={ntfy.password} onChange={(e) => setNtfy((prev) => ({ ...prev, password: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : 'Basic auth'} autoComplete="off" /></label>
+        <div className="panel-head">
+          <div>
+            <p className="kicker">Incident delivery</p>
+            <h2>Degradation and recovery alerts</h2>
           </div>
-          <div className="row">
-            <label>Priority<input value={ntfy.priority} onChange={(e) => setNtfy((prev) => ({ ...prev, priority: e.target.value }))} placeholder={ntfyStored?.priority ?? 'default'} /></label>
-            <label>Tags (comma)<input value={ntfy.tags} onChange={(e) => setNtfy((prev) => ({ ...prev, tags: e.target.value }))} placeholder={ntfyStored?.tags ?? 'warning'} /></label>
+          <span className="muted">Blank fields keep stored secrets</span>
+        </div>
+        {message && (
+          <div className={save.isError || test.isError ? 'error' : 'notice'} role={save.isError || test.isError ? 'alert' : 'status'}>
+            {message}
           </div>
-          <Button variant="outline" disabled={test.isPending} onClick={() => test.mutate({ provider: 'ntfy', draft: ntfyJson(ntfy), required: ['serverUrl', 'topic'] })}>Send test</Button>
+        )}
+        <div className="notify-grid">
+          <div className="notify-card" role="group" aria-labelledby="ntfy-group-title">
+            <span id="ntfy-group-title" className="sr-only">ntfy notification channel</span>
+            <label className="check">
+              <input type="checkbox" checked={ntfyEnabled} onChange={(e) => setNtfyOverride(e.target.checked)} />
+              <span>ntfy {ntfyStored?.hasConfiguration && <small>· configured</small>}</span>
+            </label>
+            <label>
+              <span>Server URL</span>
+              <input value={ntfy.serverUrl} onChange={(e) => setNtfy((prev) => ({ ...prev, serverUrl: e.target.value }))} placeholder={ntfyStored?.serverUrl ?? 'https://ntfy.sh'} inputMode="url" />
+            </label>
+            <label>
+              <span>Topic</span>
+              <input value={ntfy.topic} onChange={(e) => setNtfy((prev) => ({ ...prev, topic: e.target.value }))} placeholder={ntfyStored?.topic ?? 'wanetra'} />
+            </label>
+            <label>
+              <span>Token (optional)</span>
+              <input type="password" value={ntfy.token} onChange={(e) => setNtfy((prev) => ({ ...prev, token: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : 'Bearer token'} autoComplete="off" />
+            </label>
+            <div className="row">
+              <label>
+                <span>Username</span>
+                <input value={ntfy.username} onChange={(e) => setNtfy((prev) => ({ ...prev, username: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : ''} autoComplete="off" />
+              </label>
+              <label>
+                <span>Password</span>
+                <input type="password" value={ntfy.password} onChange={(e) => setNtfy((prev) => ({ ...prev, password: e.target.value }))} placeholder={ntfyStored?.hasCredentials ? '(stored)' : 'Basic auth'} autoComplete="off" />
+              </label>
+            </div>
+            <div className="row">
+              <label>
+                <span>Priority</span>
+                <input value={ntfy.priority} onChange={(e) => setNtfy((prev) => ({ ...prev, priority: e.target.value }))} placeholder={ntfyStored?.priority ?? 'default'} />
+              </label>
+              <label>
+                <span>Tags (comma)</span>
+                <input value={ntfy.tags} onChange={(e) => setNtfy((prev) => ({ ...prev, tags: e.target.value }))} placeholder={ntfyStored?.tags ?? 'warning'} />
+              </label>
+            </div>
+            <Button
+              variant="outline"
+              disabled={test.isPending}
+              aria-disabled={test.isPending}
+              onClick={() => {
+                if (!test.isPending) test.mutate({ provider: 'ntfy', draft: ntfyJson(ntfy), required: ['serverUrl', 'topic'] })
+              }}
+            >
+              Send test
+            </Button>
+          </div>
+          <div className="notify-card" role="group" aria-labelledby="webhook-group-title">
+            <span id="webhook-group-title" className="sr-only">Webhook notification channel</span>
+            <label className="check">
+              <input type="checkbox" checked={webhookEnabled} onChange={(e) => setWebhookOverride(e.target.checked)} />
+              <span>Webhook {webhookStored?.hasConfiguration && <small>· configured</small>}</span>
+            </label>
+            <label>
+              <span>URL</span>
+              <input value={webhook.url} onChange={(e) => setWebhook((prev) => ({ ...prev, url: e.target.value }))} placeholder={webhookStored?.hasUrl ? '(stored)' : 'https://example.com/hook'} inputMode="url" />
+            </label>
+            <label>
+              <span>Method</span>
+              <select value={webhook.method || webhookStored?.method || 'POST'} onChange={(e) => setWebhook((prev) => ({ ...prev, method: e.target.value }))}>
+                <option value="">(stored/default)</option>
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+              </select>
+            </label>
+            <label>
+              <span>Headers JSON (optional)</span>
+              <textarea value={webhook.headersJson} onChange={(e) => setWebhook((prev) => ({ ...prev, headersJson: e.target.value }))} placeholder={webhookStored?.hasHeaders ? '(stored; blank keeps existing headers)' : '{"X-Token": "..."}'} rows={3} spellCheck={false} />
+            </label>
+            <Button
+              variant="outline"
+              disabled={test.isPending}
+              aria-disabled={test.isPending}
+              onClick={() => {
+                if (!test.isPending) test.mutate({ provider: 'webhook', draft: webhookJson(webhook), required: ['url'] })
+              }}
+            >
+              Send test
+            </Button>
+          </div>
         </div>
-        <div className="notify-card">
-          <label className="check"><input type="checkbox" checked={webhookEnabled} onChange={(e) => setWebhookOverride(e.target.checked)} /> Webhook {webhookStored?.hasConfiguration && <small>· configured</small>}</label>
-          <label>URL<input value={webhook.url} onChange={(e) => setWebhook((prev) => ({ ...prev, url: e.target.value }))} placeholder={webhookStored?.hasUrl ? '(stored)' : 'https://example.com/hook'} inputMode="url" /></label>
-          <label>Method
-            <select value={webhook.method || webhookStored?.method || 'POST'} onChange={(e) => setWebhook((prev) => ({ ...prev, method: e.target.value }))}>
-              <option value="">(stored/default)</option><option>GET</option><option>POST</option><option>PUT</option>
-            </select>
-          </label>
-          <label>Headers JSON (optional)<textarea value={webhook.headersJson} onChange={(e) => setWebhook((prev) => ({ ...prev, headersJson: e.target.value }))} placeholder={webhookStored?.hasHeaders ? '(stored; blank keeps existing headers)' : '{"X-Token": "..."}'} rows={3} spellCheck={false} /></label>
-          <Button variant="outline" disabled={test.isPending} onClick={() => test.mutate({ provider: 'webhook', draft: webhookJson(webhook), required: ['url'] })}>Send test</Button>
-        </div>
-      </div>
-      <Button className="save" disabled={save.isPending} onClick={() => { save.mutate() }}>{save.isPending ? 'Saving…' : 'Save notifications'}</Button>
+        <Button
+          className="save"
+          disabled={save.isPending}
+          aria-disabled={save.isPending}
+          onClick={() => {
+            if (!save.isPending) save.mutate()
+          }}
+        >
+          {save.isPending ? 'Saving…' : 'Save notifications'}
+        </Button>
       </section>
     </main>
   )

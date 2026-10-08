@@ -43,7 +43,21 @@ docker compose up -d
 
 ## Configuration
 
-Settings are environment variables. The Compose files forward the ones listed here; put them in a `.env` file next to the Compose file (see `.env.example`).
+Most settings can be changed directly from the Settings page in the web UI. They take effect on the next test run or retention cleanup without restarting the container.
+
+Setting values follow this precedence order:
+
+1. Non-empty environment variable (highest priority).
+2. Stored value in the database (set via the UI or API).
+3. Built-in default in code.
+
+An empty or whitespace environment variable counts as unset. This ensures Docker Compose variable fallbacks such as `${SpeedTest__Engine:-}` do not override stored values.
+
+When a setting is set via an environment variable, it becomes locked and cannot be edited in the UI or changed via the API. The UI displays the environment variable name and shows the setting as read-only.
+
+Executable paths are restricted (`speedtest.librespeed.executablePath`, `speedtest.cloudflare.executablePath`, `speedtest.ookla.executablePath`). Because Wanetra does not yet require authentication, editable binary paths would allow arbitrary command execution by anyone with access to the UI. Restricted settings cannot be changed through the UI or API; they can only be set via environment variables.
+
+Common configuration variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -59,11 +73,11 @@ Settings are environment variables. The Compose files forward the ones listed he
 
 Cleanup of old results runs at startup and then every 24 hours. A result exactly at the cutoff is kept; only older ones are deleted.
 
-Every engine also accepts `SpeedTest__<Engine>__TimeoutSeconds`, and all except `ookla` accept `SpeedTest__<Engine>__ExecutablePath`. `librespeed` and `ookla` accept `SpeedTest__<Engine>__ServerId` to pin a test server. The Compose files forward only the variables in the table above, so add any of these under `environment:` yourself, for example `SpeedTest__Cloudflare__TimeoutSeconds: 600`.
+Every engine setting can also be configured via its environment variable (replacing `.` with `__` and using configuration keys). Any non-empty value locks that setting in the UI.
 
 ## Speed-test engines
 
-One engine runs at a time. Change `SpeedTest__Engine` and restart the container. Each result stores the engine that produced it, and `GET /api/speedtests?engine=` filters on it.
+One engine runs at a time. You can select the active engine in the Settings page or lock it with `SpeedTest__Engine`. The change applies immediately to the next test run. Each result stores the engine that produced it, and `GET /api/speedtests?engine=` filters on it.
 
 | Engine | Tool | Bundled in the image | Packet loss |
 | --- | --- | --- | --- |
@@ -77,7 +91,7 @@ Where packet loss is not reported, the value is empty, Prometheus exposes `NaN`,
 
 ### Cloudflare
 
-Download and upload are the median of the largest payload size that produced samples. Small payloads are skipped for the headline number because TCP slow start dominates them. Latency is the median of the latency samples, and jitter is the mean difference between consecutive samples, so a single spike raises jitter noticeably. A run can take a minute or more on a slow link. `SpeedTest__Cloudflare__TimeoutSeconds` (default 300) is the only limit on its duration.
+Download and upload are the median of the largest payload size that produced samples. Small payloads are skipped for the headline number because TCP slow start dominates them. Latency is the median of the latency samples, and jitter is the mean difference between consecutive samples, so a single spike raises jitter noticeably. A run can take a minute or more on a slow link. `speedtest.cloudflare.timeoutSeconds` (default 300) is the limit on its duration.
 
 ### Ookla and its license
 
@@ -91,14 +105,14 @@ Because of the redistribution ban, the Wanetra image does not contain the Ookla 
 
 Instead, when you opt in, your own Wanetra instance downloads the CLI directly from Ookla (`install.speedtest.net`) the first time a test runs. You receive the software from Ookla, under Ookla's license, on your own machine.
 
-To opt in:
+To opt in, accept the license in the web UI Settings page (which records the acceptance timestamp) or set the environment variable:
 
 ```sh
 SpeedTest__Engine=ookla
 SpeedTest__Ookla__AcceptLicense=true
 ```
 
-Setting `AcceptLicense=true` states three things on your behalf: that you have read and accept Ookla's [EULA](https://www.speedtest.net/about/eula), [Terms of Use](https://www.speedtest.net/about/terms) and [Privacy Policy](https://www.ookla.com/privacy), that your use qualifies under them, and that Wanetra may download the CLI for you. Wanetra also passes `--accept-license --accept-gdpr` to the CLI, because it refuses to run non-interactively otherwise. Without the setting, Wanetra will not start with `ookla` selected.
+Accepting the license states three things on your behalf: that you have read and accept Ookla's [EULA](https://www.speedtest.net/about/eula), [Terms of Use](https://www.speedtest.net/about/terms) and [Privacy Policy](https://www.ookla.com/privacy), that your use qualifies under them, and that Wanetra may download the CLI for you. Wanetra also passes `--accept-license --accept-gdpr` to the CLI, because it refuses to run non-interactively otherwise. If `ookla` is selected without license acceptance, Wanetra refuses to start (when configured via environment) or rejects the setting change with an error.
 
 The Wanetra maintainers cannot grant or confirm that your use is allowed, and this is not legal advice. If you use Wanetra for a business, for a client, or on shared infrastructure, assume the personal-use limit applies to you and choose `librespeed` or `cloudflare`, or get a license from Ookla.
 
@@ -131,10 +145,13 @@ Reading the notification settings never returns secrets or webhook URLs. When yo
 
 ## Security
 
-Wanetra has no login and no user accounts. The Compose files bind to `127.0.0.1` so that only the Docker host can reach it. To use it from your LAN, set `WANETRA_BIND_ADDRESS` to the host's LAN address (or to `0.0.0.0` for every interface) and restrict access with the host firewall. Do not expose it to the public internet. If you need remote access, put an authenticating reverse proxy in front.
+Wanetra has no login and no user accounts. Anyone who can reach the web UI or API can modify application settings, change the speed-test engine, and accept the Ookla license. Keep Wanetra bound to loopback or place it behind an authenticating reverse proxy before exposing it to other users or networks.
+
+The Compose files bind to `127.0.0.1` by default so that only the Docker host can reach it. To use it from your LAN, set `WANETRA_BIND_ADDRESS` to the host's LAN address (or to `0.0.0.0` for every interface) and restrict access with the host firewall. Do not expose it to the public internet without authentication.
+
+Executable paths cannot be modified through the API or web UI for this reason. They must be set through environment variables.
 
 The SQLite database in `/data` stores notification settings as plain JSON, including ntfy tokens and passwords and webhook headers. Limit who can read the volume, and treat its backups as secrets.
-
 ## API
 
 | Method | Path | Purpose |
@@ -153,7 +170,7 @@ The SQLite database in `/data` stores notification settings as plain JSON, inclu
 | `GET`, `PUT` | `/api/alerts/rule` | Read or save the alert rule and its transition counts. |
 | `GET`, `PUT` | `/api/notifications` | Read or save the ntfy and webhook configuration. |
 | `POST` | `/api/notifications/test` | Send a test notification to a saved or draft destination. |
-| `GET` | `/api/settings/retention` | The configured retention period. |
+| `GET`, `PUT` | `/api/settings` | Read all settings or atomically update values. |
 | `GET` | `/metrics` | Prometheus scrape endpoint. |
 | `GET` | `/health`, `/health/live`, `/health/ready` | Health checks. |
 

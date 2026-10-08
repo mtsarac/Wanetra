@@ -13,6 +13,7 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
     public DbSet<DegradationEvent> DegradationEvents => Set<DegradationEvent>();
     public DbSet<NotificationConfiguration> NotificationConfigurations => Set<NotificationConfiguration>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -75,6 +76,13 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
                 .WithMany(degradationEvent => degradationEvent.NotificationDeliveries)
                 .HasForeignKey(delivery => delivery.DegradationEventId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AppSetting>(entity =>
+        {
+            entity.HasKey(x => x.Key);
+            entity.Property(x => x.Key).HasMaxLength(128);
+            entity.Property(x => x.Value).HasMaxLength(1024);
         });
     }
 

@@ -8,9 +8,9 @@ services:
     environment:
       TZ: ${TZ:-Europe/Istanbul}
       WANETRA_DATA_PATH: ${WANETRA_DATA_PATH:-/data}
-      DataRetention__Days: ${DataRetention__Days:-365}
-      SpeedTest__Engine: ${SpeedTest__Engine:-librespeed}
-      SpeedTest__Ookla__AcceptLicense: ${SpeedTest__Ookla__AcceptLicense:-false}
+      DataRetention__Days: ${DataRetention__Days:-}
+      SpeedTest__Engine: ${SpeedTest__Engine:-}
+      SpeedTest__Ookla__AcceptLicense: ${SpeedTest__Ookla__AcceptLicense:-}
       SpeedTest__Ookla__ExecutablePath: ${SpeedTest__Ookla__ExecutablePath:-}
     volumes:
       - wanetra-data:/data
