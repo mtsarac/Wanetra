@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
@@ -8,6 +9,9 @@ namespace Wanetra.Api.Tests.SpeedTests;
 
 public class OoklaSpeedEngineTests
 {
+    private const string InstalledPath = "/data/ookla/1.2.0/speedtest";
+    private const string FallbackPath = "/opt/ookla/speedtest";
+
     private const string SampleOutput = """
         {"type":"result","timestamp":"2026-10-08T10:00:00Z",
          "ping":{"jitter":0.7,"latency":10.3,"low":9.8,"high":11.2},
@@ -59,11 +63,11 @@ public class OoklaSpeedEngineTests
     public async Task Runs_non_interactively_with_the_configured_server()
     {
         var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
-        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = "/opt/ookla/speedtest", ServerId = 42 });
+        var engine = CreateEngine(runner, new OoklaOptions { ServerId = 42 });
 
         await engine.RunAsync(CancellationToken.None);
 
-        Assert.Equal("/opt/ookla/speedtest", runner.FileName);
+        Assert.Equal(InstalledPath, runner.FileName);
         Assert.Equal(
             new[] { "--format=json", "--progress=no", "--accept-license", "--accept-gdpr", "--server-id=42" },
             runner.Arguments);
@@ -81,6 +85,109 @@ public class OoklaSpeedEngineTests
         Assert.Equal(SpeedTestFailureKind.NetworkFailure, error.FailureKind);
     }
 
+    [Fact]
+    public async Task Maps_a_real_speedtest_1_2_0_result()
+    {
+        // Captured from speedtest 1.2.0 (addresses anonymized); stdout is pure JSON, the license text goes to stderr.
+        const string real = """
+            {"type":"result","timestamp":"2026-10-08T12:46:46Z",
+             "ping":{"jitter":0.964,"latency":10.841,"low":10.537,"high":12.493},
+             "download":{"bandwidth":2525417,"bytes":24780264,"elapsed":9915,"latency":{"iqm":200.015,"low":21.473,"high":717.799,"jitter":58.492}},
+             "upload":{"bandwidth":1434104,"bytes":13671800,"elapsed":10133,"latency":{"iqm":604.578,"low":38.692,"high":1667.695,"jitter":87.307}},
+             "packetLoss":0,"isp":"Netinternet Bilisim Teknolojileri",
+             "interface":{"internalIp":"192.0.2.10","name":"wlan0","macAddr":"00:00:5E:00:53:01","isVpn":false,"externalIp":"203.0.113.10"},
+             "server":{"id":39901,"host":"st-denizli-1.turksatkablo.com.tr","port":8080,"name":"Turksat Kablonet","location":"Denizli","country":"Turkey","ip":"198.51.100.7"},
+             "result":{"id":"17144c0f-6c4c-45df-92a3-9b0c8e06d6d7","url":"https://www.speedtest.net/result/c/17144c0f-6c4c-45df-92a3-9b0c8e06d6d7","persisted":true}}
+            """;
+        var engine = CreateEngine(new StubProcessRunner(new ProcessResult(0, real, "license notice on stderr")));
+
+        var result = await engine.RunAsync(CancellationToken.None);
+
+        Assert.Equal(2525417 * 8 / 1_000_000.0, result.DownloadMbps);
+        Assert.Equal(1434104 * 8 / 1_000_000.0, result.UploadMbps);
+        Assert.Equal(10.841, result.LatencyMs);
+        Assert.Equal(0.964, result.JitterMs);
+        Assert.Equal(0, result.PacketLossPercent);
+        Assert.Equal("Turksat Kablonet", result.ServerName);
+        Assert.Equal("Denizli, Turkey", result.ServerLocation);
+        Assert.Equal("39901", result.ServerId);
+        Assert.Equal("203.0.113.10", result.ExternalIp);
+    }
+
+    [Fact]
+    public async Task Reports_unreachable_ookla_configuration_as_network_failure()
+    {
+        // Exact stderr observed from speedtest 1.2.0 with no network.
+        var runner = new StubProcessRunner(new ProcessResult(2, string.Empty, """
+            [2026-10-08 15:46:51.982] [error] Configuration - Cannot retrieve configuration document (0)
+            [2026-10-08 15:46:51.986] [error] ConfigurationError - Could not retrieve or read configuration (Configuration)
+            """));
+        var engine = CreateEngine(runner);
+
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
+            () => engine.RunAsync(CancellationToken.None));
+
+        Assert.Equal(SpeedTestFailureKind.NetworkFailure, error.FailureKind);
+    }
+
+    [Fact]
+    public async Task Prefers_the_downloaded_binary_over_a_configured_executable_path()
+    {
+        var binary = new StubOoklaBinary(InstalledPath);
+        var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
+        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = FallbackPath }, binary);
+
+        await engine.RunAsync(CancellationToken.None);
+
+        Assert.Equal(InstalledPath, runner.FileName);
+        Assert.Equal(1, binary.Calls);
+    }
+
+    [Theory]
+    [InlineData(SpeedTestFailureKind.NetworkFailure)]
+    [InlineData(SpeedTestFailureKind.LocalExecutionFailure)]
+    public async Task Falls_back_to_the_configured_executable_path_when_the_download_fails(SpeedTestFailureKind failureKind)
+    {
+        var binary = new StubOoklaBinary(InstalledPath, new SpeedTestExecutionException(failureKind, "download failed"));
+        var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
+        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = FallbackPath }, binary);
+
+        var result = await engine.RunAsync(CancellationToken.None);
+
+        Assert.Equal(FallbackPath, runner.FileName);
+        Assert.Equal("ookla", result.Engine);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  ")]
+    public async Task Reports_the_download_failure_when_no_fallback_path_is_configured(string? configured)
+    {
+        var binary = new StubOoklaBinary(
+            InstalledPath,
+            new SpeedTestExecutionException(SpeedTestFailureKind.NetworkFailure, "Could not download the Ookla Speedtest CLI."));
+        var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
+        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = configured }, binary);
+
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
+            () => engine.RunAsync(CancellationToken.None));
+
+        Assert.Equal(SpeedTestFailureKind.NetworkFailure, error.FailureKind);
+        Assert.Null(runner.FileName);
+    }
+
+    [Fact]
+    public async Task Does_not_mistake_cancellation_during_the_download_for_a_reason_to_fall_back()
+    {
+        var binary = new StubOoklaBinary(InstalledPath, new OperationCanceledException());
+        var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
+        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = FallbackPath }, binary);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => engine.RunAsync(CancellationToken.None));
+
+        Assert.Null(runner.FileName);
+    }
+
     [Theory]
     [InlineData("not json")]
     [InlineData("null")]
@@ -96,6 +203,24 @@ public class OoklaSpeedEngineTests
         Assert.Equal(SpeedTestFailureKind.MeasurementFailure, error.FailureKind);
     }
 
-    private static OoklaSpeedEngine CreateEngine(IProcessRunner runner, OoklaOptions? options = null) =>
-        new(runner, Options.Create(options ?? new OoklaOptions()));
+    private static OoklaSpeedEngine CreateEngine(
+        IProcessRunner runner,
+        OoklaOptions? options = null,
+        IOoklaBinary? binary = null) =>
+        new(
+            runner,
+            Options.Create(options ?? new OoklaOptions()),
+            binary ?? new StubOoklaBinary(InstalledPath),
+            NullLogger<OoklaSpeedEngine>.Instance);
+
+    private sealed class StubOoklaBinary(string path, Exception? failure = null) : IOoklaBinary
+    {
+        public int Calls { get; private set; }
+
+        public Task<string> EnsureInstalledAsync(CancellationToken cancellationToken)
+        {
+            Calls++;
+            return failure is null ? Task.FromResult(path) : Task.FromException<string>(failure);
+        }
+    }
 }

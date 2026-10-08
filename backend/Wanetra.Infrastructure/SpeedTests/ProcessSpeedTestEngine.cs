@@ -16,9 +16,10 @@ internal abstract class ProcessSpeedTestEngine(IProcessRunner processRunner) : I
 
     protected abstract string ToolName { get; }
 
-    protected abstract string ExecutablePath { get; }
-
     protected abstract TimeSpan ProcessTimeout { get; }
+
+    /// <summary>Resolves the executable to run; engines that provision their own binary do it here.</summary>
+    protected abstract ValueTask<string> ResolveExecutableAsync(CancellationToken cancellationToken);
 
     protected abstract IReadOnlyList<string> BuildArguments();
 
@@ -30,11 +31,13 @@ internal abstract class ProcessSpeedTestEngine(IProcessRunner processRunner) : I
 
     public async Task<SpeedTestResult> RunAsync(CancellationToken cancellationToken)
     {
+        var executablePath = await ResolveExecutableAsync(cancellationToken);
+
         ProcessResult process;
         try
         {
             process = await processRunner.RunAsync(
-                ExecutablePath,
+                executablePath,
                 BuildArguments(),
                 ProcessTimeout,
                 cancellationToken);
@@ -110,5 +113,6 @@ internal abstract class ProcessSpeedTestEngine(IProcessRunner processRunner) : I
         "error sending request",
         "cannot open socket",
         "couldn't connect to server",
+        "cannot retrieve configuration",
     ];
 }

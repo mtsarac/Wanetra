@@ -1,15 +1,22 @@
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Processes;
 
 namespace Wanetra.Infrastructure.SpeedTests;
 
-/// <summary>Wraps the official Ookla <c>speedtest</c> CLI, which the operator installs separately.</summary>
+/// <summary>
+/// Wraps the official Ookla <c>speedtest</c> CLI. The binary comes from Ookla on first use once the
+/// license is accepted; <c>ExecutablePath</c> is only the fallback when that download is not possible.
+/// </summary>
 internal sealed class OoklaSpeedEngine(
     IProcessRunner processRunner,
-    IOptions<OoklaOptions> options) : ProcessSpeedTestEngine(processRunner)
+    IOptions<OoklaOptions> options,
+    IOoklaBinary binary,
+    ILogger<OoklaSpeedEngine> logger) : ProcessSpeedTestEngine(processRunner)
 {
     private const double BitsPerByte = 8;
     private const double BitsPerMegabit = 1_000_000;
@@ -23,9 +30,23 @@ internal sealed class OoklaSpeedEngine(
 
     protected override string ToolName => "speedtest";
 
-    protected override string ExecutablePath => options.Value.ExecutablePath;
-
     protected override TimeSpan ProcessTimeout => TimeSpan.FromSeconds(options.Value.TimeoutSeconds);
+
+    protected override async ValueTask<string> ResolveExecutableAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await binary.EnsureInstalledAsync(cancellationToken);
+        }
+        catch (SpeedTestExecutionException exception) when (!string.IsNullOrWhiteSpace(options.Value.ExecutablePath))
+        {
+            logger.LogWarning(
+                "{Reason}; using the fallback {ExecutablePath}",
+                exception.InnerException is null ? exception.Message : $"{exception.Message} ({exception.InnerException.Message})",
+                options.Value.ExecutablePath);
+            return options.Value.ExecutablePath;
+        }
+    }
 
     protected override IReadOnlyList<string> BuildArguments()
     {

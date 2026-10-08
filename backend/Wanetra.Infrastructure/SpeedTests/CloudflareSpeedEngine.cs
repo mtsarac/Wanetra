@@ -23,7 +23,8 @@ internal sealed class CloudflareSpeedEngine(
 
     protected override string ToolName => "cfspeedtest";
 
-    protected override string ExecutablePath => options.Value.ExecutablePath;
+    protected override ValueTask<string> ResolveExecutableAsync(CancellationToken cancellationToken) =>
+        ValueTask.FromResult(options.Value.ExecutablePath);
 
     protected override TimeSpan ProcessTimeout => TimeSpan.FromSeconds(options.Value.TimeoutSeconds);
 
