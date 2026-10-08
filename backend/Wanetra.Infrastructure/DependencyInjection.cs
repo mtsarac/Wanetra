@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Wanetra.Application.Notifications;
 using Wanetra.Domain;
@@ -40,18 +41,25 @@ public static class DependencyInjection
         switch (engine)
         {
             case "librespeed":
-                AddCliOptions<LibreSpeedOptions>(services, configuration, LibreSpeedOptions.SectionName, o => o.ExecutablePath, o => o.TimeoutSeconds);
+                AddCliOptions<LibreSpeedOptions>(services, configuration, LibreSpeedOptions.SectionName, o => o.TimeoutSeconds)
+                    .Validate(o => !string.IsNullOrWhiteSpace(o.ExecutablePath), $"{LibreSpeedOptions.SectionName}:ExecutablePath must be set.");
                 services.AddScoped<ISpeedTestEngine, LibreSpeedEngine>();
                 break;
             case "cloudflare":
-                AddCliOptions<CloudflareOptions>(services, configuration, CloudflareOptions.SectionName, o => o.ExecutablePath, o => o.TimeoutSeconds);
+                AddCliOptions<CloudflareOptions>(services, configuration, CloudflareOptions.SectionName, o => o.TimeoutSeconds)
+                    .Validate(o => !string.IsNullOrWhiteSpace(o.ExecutablePath), $"{CloudflareOptions.SectionName}:ExecutablePath must be set.");
                 services.AddScoped<ISpeedTestEngine, CloudflareSpeedEngine>();
                 break;
             case "ookla":
-                AddCliOptions<OoklaOptions>(services, configuration, OoklaOptions.SectionName, o => o.ExecutablePath, o => o.TimeoutSeconds)
+                AddCliOptions<OoklaOptions>(services, configuration, OoklaOptions.SectionName, o => o.TimeoutSeconds)
                     .Validate(
                         o => o.AcceptLicense,
                         $"{OoklaOptions.SectionName}:AcceptLicense must be true to confirm you accepted the Ookla EULA and GDPR notice (https://www.speedtest.net/about/eula).");
+                services.AddHttpClient<IOoklaBinary, OoklaBinaryInstaller>((httpClient, provider) => new OoklaBinaryInstaller(
+                    httpClient,
+                    Path.Combine(dataPath, "ookla"),
+                    OoklaRelease.ForCurrentPlatform,
+                    provider.GetRequiredService<ILogger<OoklaBinaryInstaller>>()));
                 services.AddScoped<ISpeedTestEngine, OoklaSpeedEngine>();
                 break;
             default:
@@ -66,12 +74,10 @@ public static class DependencyInjection
         IServiceCollection services,
         IConfiguration configuration,
         string sectionName,
-        Func<T, string> executablePath,
         Func<T, int> timeoutSeconds)
         where T : class =>
         services.AddOptions<T>()
             .Bind(configuration.GetSection(sectionName))
             .Validate(options => timeoutSeconds(options) > 0, $"{sectionName}:TimeoutSeconds must be greater than zero.")
-            .Validate(options => !string.IsNullOrWhiteSpace(executablePath(options)), $"{sectionName}:ExecutablePath must be set.")
             .ValidateOnStart();
 }

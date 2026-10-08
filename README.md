@@ -44,14 +44,14 @@ Different engines use different servers and methods, so their numbers are not
 comparable. Switching engines mixes them into the same alert baseline until
 the old results age out of the baseline window.
 
-| Engine | Binary | Bundled in image | Packet loss |
+| Engine | Binary | In the image | Packet loss |
 | --- | --- | --- | --- |
-| `librespeed` | [librespeed-cli](https://github.com/librespeed/speedtest-cli) | yes | no |
-| `cloudflare` | [cfspeedtest](https://github.com/code-inflation/cfspeedtest), an unofficial CLI for speed.cloudflare.com | yes | no |
-| `ookla` | Official [Speedtest CLI](https://www.speedtest.net/apps/cli) | **no** | when available |
+| `librespeed` | [librespeed-cli](https://github.com/librespeed/speedtest-cli) | bundled | no |
+| `cloudflare` | [cfspeedtest](https://github.com/code-inflation/cfspeedtest), an unofficial CLI for speed.cloudflare.com | bundled | no |
+| `ookla` | Official [Speedtest CLI](https://www.speedtest.net/apps/cli) | **not bundled**; downloaded from Ookla on first use ([details](#ookla)) | when available |
 
-Each engine reads `SpeedTest__<Engine>__ExecutablePath` and
-`SpeedTest__<Engine>__TimeoutSeconds` (for example
+Each engine reads `SpeedTest__<Engine>__ExecutablePath` (except `ookla`, where it
+is optional) and `SpeedTest__<Engine>__TimeoutSeconds` (for example
 `SpeedTest__Cloudflare__TimeoutSeconds`). `librespeed` and `ookla` also accept
 `SpeedTest__<Engine>__ServerId`.
 
@@ -64,17 +64,29 @@ minute or more on slow connections; `SpeedTest__Cloudflare__TimeoutSeconds`
 #### Ookla
 
 Ookla's [EULA](https://www.speedtest.net/about/eula) allows personal,
-non-commercial use only and forbids redistributing the binary, so Wanetra's
-image does not include it. To use it:
+non-commercial use on a single personal computer and forbids redistributing the
+binary, so Wanetra's image does **not** include it. Instead, Wanetra downloads the
+official Speedtest CLI straight from Ookla (`install.speedtest.net`) on first use,
+once you opt in:
 
-1. Download the Linux binary for your architecture from the
-   [Speedtest CLI page](https://www.speedtest.net/apps/cli).
-2. Mount it into the container, for example
-   `./speedtest:/usr/local/bin/speedtest:ro` under `volumes:` in your Compose file.
-3. Set `SpeedTest__Engine=ookla` and `SpeedTest__Ookla__AcceptLicense=true`.
-   The CLI will not run non-interactively until the EULA and GDPR notice are
-   accepted; setting this confirms that you did. Wanetra refuses to start with
-   `ookla` selected and the flag unset.
+```sh
+SpeedTest__Engine=ookla
+SpeedTest__Ookla__AcceptLicense=true
+```
+
+`AcceptLicense=true` is your confirmation that you read and accept the Ookla
+[EULA](https://www.speedtest.net/about/eula) and GDPR notice, that your use
+qualifies (personal, non-commercial), and that Wanetra may fetch the binary for
+you. Without it, Wanetra refuses to start with `ookla` selected.
+
+- The archive is pinned by version (1.2.0) and sha256 and checked before use. On a
+  mismatch it is discarded and the run fails. amd64 and arm64 Linux are supported.
+- The binary is stored under `$WANETRA_DATA_PATH/ookla/<version>/` and downloaded
+  once; later runs reuse it. The first test needs a connection to Ookla and takes
+  a moment longer.
+- Air-gapped or prefer your own copy? Set `SpeedTest__Ookla__ExecutablePath` (for
+  example a read-only mount at `/usr/local/bin/speedtest`); nothing is downloaded then.
+- Ookla also uploads each result to speedtest.net and records a result URL on its side.
 
 ## Security
 

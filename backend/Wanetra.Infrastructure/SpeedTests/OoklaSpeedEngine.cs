@@ -6,10 +6,14 @@ using Wanetra.Infrastructure.Processes;
 
 namespace Wanetra.Infrastructure.SpeedTests;
 
-/// <summary>Wraps the official Ookla <c>speedtest</c> CLI, which the operator installs separately.</summary>
+/// <summary>
+/// Wraps the official Ookla <c>speedtest</c> CLI. The binary is the operator's own: supplied via
+/// <c>ExecutablePath</c>, or downloaded from Ookla on first use once the license is accepted.
+/// </summary>
 internal sealed class OoklaSpeedEngine(
     IProcessRunner processRunner,
-    IOptions<OoklaOptions> options) : ProcessSpeedTestEngine(processRunner)
+    IOptions<OoklaOptions> options,
+    IOoklaBinary binary) : ProcessSpeedTestEngine(processRunner)
 {
     private const double BitsPerByte = 8;
     private const double BitsPerMegabit = 1_000_000;
@@ -23,9 +27,12 @@ internal sealed class OoklaSpeedEngine(
 
     protected override string ToolName => "speedtest";
 
-    protected override string ExecutablePath => options.Value.ExecutablePath;
-
     protected override TimeSpan ProcessTimeout => TimeSpan.FromSeconds(options.Value.TimeoutSeconds);
+
+    protected override ValueTask<string> ResolveExecutableAsync(CancellationToken cancellationToken) =>
+        string.IsNullOrWhiteSpace(options.Value.ExecutablePath)
+            ? new ValueTask<string>(binary.EnsureInstalledAsync(cancellationToken))
+            : ValueTask.FromResult(options.Value.ExecutablePath);
 
     protected override IReadOnlyList<string> BuildArguments()
     {
