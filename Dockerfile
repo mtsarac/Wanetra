@@ -37,6 +37,28 @@ RUN set -eu; \
     install -m 0755 /tmp/librespeed-cli/librespeed-cli /usr/local/bin/librespeed-cli; \
     install -m 0644 /tmp/librespeed-cli/LICENSE /usr/share/licenses/librespeed-cli/LICENSE; \
     rm -rf /tmp/librespeed-cli /tmp/librespeed-cli.tar.gz
+ARG CFSPEEDTEST_VERSION=2.2.2
+ARG CFSPEEDTEST_LICENSE_SHA256=508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      amd64) CFSPEEDTEST_TARGET=x86_64-unknown-linux-gnu; CFSPEEDTEST_SHA256=241df2323e5f7dca5b7e3bbed3061800c00081252738dd10d188439501f69b51 ;; \
+      arm64) CFSPEEDTEST_TARGET=aarch64-unknown-linux-gnu; CFSPEEDTEST_SHA256=0d4778e1ca6856dc1f3303337039a15abee21f09a3ef804ea22bfd09d1b41133 ;; \
+      *) echo "Unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    CFSPEEDTEST_BASE="https://github.com/code-inflation/cfspeedtest"; \
+    curl --fail --silent --show-error --location \
+      "${CFSPEEDTEST_BASE}/releases/download/v${CFSPEEDTEST_VERSION}/cfspeedtest-${CFSPEEDTEST_TARGET}.tar.gz" \
+      --output /tmp/cfspeedtest.tar.gz; \
+    echo "$CFSPEEDTEST_SHA256  /tmp/cfspeedtest.tar.gz" | sha256sum --check --status; \
+    curl --fail --silent --show-error --location \
+      "https://raw.githubusercontent.com/code-inflation/cfspeedtest/v${CFSPEEDTEST_VERSION}/LICENSE.txt" \
+      --output /tmp/cfspeedtest-LICENSE; \
+    echo "$CFSPEEDTEST_LICENSE_SHA256  /tmp/cfspeedtest-LICENSE" | sha256sum --check --status; \
+    mkdir -p /tmp/cfspeedtest /usr/share/licenses/cfspeedtest; \
+    tar -xzf /tmp/cfspeedtest.tar.gz -C /tmp/cfspeedtest; \
+    install -m 0755 /tmp/cfspeedtest/cfspeedtest /usr/local/bin/cfspeedtest; \
+    install -m 0644 /tmp/cfspeedtest-LICENSE /usr/share/licenses/cfspeedtest/LICENSE; \
+    rm -rf /tmp/cfspeedtest /tmp/cfspeedtest.tar.gz /tmp/cfspeedtest-LICENSE
 COPY --from=backend /app/publish ./
 COPY --from=frontend /src/frontend/dist ./wwwroot
 RUN mkdir /data && chown -R $APP_UID:$APP_UID /app /data
