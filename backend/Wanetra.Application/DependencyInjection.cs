@@ -4,6 +4,7 @@ using Wanetra.Application.Alerts;
 using Wanetra.Application.Baselines;
 using Wanetra.Application.Notifications;
 using Wanetra.Application.Scheduling;
+using Wanetra.Application.Settings;
 using Wanetra.Application.SpeedTests;
 using Wanetra.Application.Maintenance;
 using Wanetra.Domain;
@@ -16,6 +17,8 @@ public static class DependencyInjection
     {
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IPrometheusMetrics, NoopPrometheusMetrics>();
+        services.AddSingleton<SettingsSnapshot>();
+        services.AddScoped<SettingsService>();
         services.AddScoped<SpeedTestExecutor>();
         services.AddScoped<BaselineService>();
         services.AddScoped<AlertEvaluationService>();

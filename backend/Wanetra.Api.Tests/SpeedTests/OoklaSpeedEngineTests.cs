@@ -203,15 +203,35 @@ public class OoklaSpeedEngineTests
         Assert.Equal(SpeedTestFailureKind.MeasurementFailure, error.FailureKind);
     }
 
+    [Fact]
+    public async Task Throws_when_license_is_not_accepted()
+    {
+        var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
+        var engine = CreateEngine(runner, new OoklaOptions(), acceptLicense: false);
+
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
+            () => engine.RunAsync(CancellationToken.None));
+
+        Assert.Equal(SpeedTestFailureKind.LocalExecutionFailure, error.FailureKind);
+        Assert.Contains("speedtest.ookla.acceptLicense", error.Message);
+    }
+
     private static OoklaSpeedEngine CreateEngine(
         IProcessRunner runner,
         OoklaOptions? options = null,
-        IOoklaBinary? binary = null) =>
+        IOoklaBinary? binary = null,
+        bool acceptLicense = true) =>
         new(
             runner,
-            Options.Create(options ?? new OoklaOptions()),
+            Options.Create(Licensed(options ?? new OoklaOptions(), acceptLicense)),
             binary ?? new StubOoklaBinary(InstalledPath),
             NullLogger<OoklaSpeedEngine>.Instance);
+
+    private static OoklaOptions Licensed(OoklaOptions options, bool acceptLicense)
+    {
+        options.AcceptLicense = acceptLicense;
+        return options;
+    }
 
     private sealed class StubOoklaBinary(string path, Exception? failure = null) : IOoklaBinary
     {

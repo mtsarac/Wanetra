@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Wanetra.Application.Notifications;
+using Wanetra.Application.Settings;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Persistence;
 using Wanetra.Infrastructure.Processes;
@@ -15,11 +16,9 @@ namespace Wanetra.Infrastructure;
 public static class DependencyInjection
 {
     public const string DatabaseFileName = "wanetra.db";
-    public const string EngineSettingKey = "SpeedTest:Engine";
 
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration,
         string dataPath)
     {
         var connectionString = new SqliteConnectionStringBuilder
@@ -32,55 +31,79 @@ public static class DependencyInjection
         services.AddScoped<IScheduleSettingsRepository, ScheduleSettingsRepository>();
         services.AddScoped<IAlertStateRepository, AlertStateRepository>();
         services.AddScoped<INotificationConfigurationRepository, NotificationConfigurationRepository>();
+        services.AddScoped<IAppSettingRepository, AppSettingRepository>();
         services.AddHttpClient<NtfyNotificationProvider>();
         services.AddHttpClient<WebhookNotificationProvider>();
 
         services.AddSingleton<IProcessRunner, ProcessRunner>();
 
-        var engine = (configuration[EngineSettingKey] ?? "librespeed").Trim().ToLowerInvariant();
-        switch (engine)
+        // Always register the Ookla installer typed client (30 s timeout)
+        services.AddHttpClient<IOoklaBinary, OoklaBinaryInstaller>((httpClient, provider) => new OoklaBinaryInstaller(
+            httpClient,
+            Path.Combine(dataPath, "ookla"),
+            OoklaRelease.ForCurrentPlatform,
+            provider.GetRequiredService<ILogger<OoklaBinaryInstaller>>()))
+            .ConfigureHttpClient(httpClient => httpClient.Timeout = TimeSpan.FromSeconds(30));
+
+        // Register typed options built from snapshot
+        services.AddScoped<IOptions<LibreSpeedOptions>>(sp =>
         {
-            case "librespeed":
-                AddCliOptions<LibreSpeedOptions>(services, configuration, LibreSpeedOptions.SectionName, o => o.TimeoutSeconds)
-                    .Validate(o => !string.IsNullOrWhiteSpace(o.ExecutablePath), $"{LibreSpeedOptions.SectionName}:ExecutablePath must be set.");
-                services.AddScoped<ISpeedTestEngine, LibreSpeedEngine>();
-                break;
-            case "cloudflare":
-                AddCliOptions<CloudflareOptions>(services, configuration, CloudflareOptions.SectionName, o => o.TimeoutSeconds)
-                    .Validate(o => !string.IsNullOrWhiteSpace(o.ExecutablePath), $"{CloudflareOptions.SectionName}:ExecutablePath must be set.");
-                services.AddScoped<ISpeedTestEngine, CloudflareSpeedEngine>();
-                break;
-            case "ookla":
-                AddCliOptions<OoklaOptions>(services, configuration, OoklaOptions.SectionName, o => o.TimeoutSeconds)
-                    .Validate(
-                        o => o.AcceptLicense,
-                        $"{OoklaOptions.SectionName}:AcceptLicense must be true to confirm you accepted the Ookla EULA and GDPR notice (https://www.speedtest.net/about/eula).");
-                services.AddHttpClient<IOoklaBinary, OoklaBinaryInstaller>((httpClient, provider) => new OoklaBinaryInstaller(
-                    httpClient,
-                    Path.Combine(dataPath, "ookla"),
-                    OoklaRelease.ForCurrentPlatform,
-                    provider.GetRequiredService<ILogger<OoklaBinaryInstaller>>()))
-                    // The archive is about 1 MB. Cap the wait so a host that drops packets reaches
-                    // the ExecutablePath fallback quickly instead of after the 100 s default.
-                    .ConfigureHttpClient(httpClient => httpClient.Timeout = TimeSpan.FromSeconds(30));
-                services.AddScoped<ISpeedTestEngine, OoklaSpeedEngine>();
-                break;
-            default:
-                throw new InvalidOperationException(
-                    $"{EngineSettingKey} must be one of: librespeed, cloudflare, ookla (got '{engine}').");
-        }
+            var snapshot = sp.GetRequiredService<SettingsSnapshot>();
+            return Options.Create(new LibreSpeedOptions
+            {
+                TimeoutSeconds = snapshot.GetInt(SettingKeys.SpeedTestLibreSpeedTimeoutSeconds),
+                ServerId = snapshot.GetOptionalInt(SettingKeys.SpeedTestLibreSpeedServerId),
+                ExecutablePath = snapshot.GetString(SettingKeys.SpeedTestLibreSpeedExecutablePath),
+            });
+        });
+
+        services.AddScoped<IOptions<CloudflareOptions>>(sp =>
+        {
+            var snapshot = sp.GetRequiredService<SettingsSnapshot>();
+            return Options.Create(new CloudflareOptions
+            {
+                TimeoutSeconds = snapshot.GetInt(SettingKeys.SpeedTestCloudflareTimeoutSeconds),
+                ExecutablePath = snapshot.GetString(SettingKeys.SpeedTestCloudflareExecutablePath),
+            });
+        });
+
+        services.AddScoped<IOptions<OoklaOptions>>(sp =>
+        {
+            var snapshot = sp.GetRequiredService<SettingsSnapshot>();
+            return Options.Create(new OoklaOptions
+            {
+                TimeoutSeconds = snapshot.GetInt(SettingKeys.SpeedTestOoklaTimeoutSeconds),
+                ServerId = snapshot.GetOptionalInt(SettingKeys.SpeedTestOoklaServerId),
+                ExecutablePath = snapshot.GetOptionalString(SettingKeys.SpeedTestOoklaExecutablePath),
+                AcceptLicense = snapshot.GetBool(SettingKeys.SpeedTestOoklaAcceptLicense),
+            });
+        });
+
+        // Register all three engines scoped
+        services.AddScoped<LibreSpeedEngine>();
+        services.AddScoped<CloudflareSpeedEngine>();
+        services.AddScoped<OoklaSpeedEngine>();
+
+        // Register ISpeedTestEngine factory picking the engine named by the snapshot
+        services.AddScoped<ISpeedTestEngine>(sp =>
+        {
+            var snapshot = sp.GetRequiredService<SettingsSnapshot>();
+            return snapshot.SpeedTestEngine.ToLowerInvariant() switch
+            {
+                SpeedTestEngineNames.LibreSpeed => sp.GetRequiredService<LibreSpeedEngine>(),
+                SpeedTestEngineNames.Cloudflare => sp.GetRequiredService<CloudflareSpeedEngine>(),
+                SpeedTestEngineNames.Ookla => sp.GetRequiredService<OoklaSpeedEngine>(),
+                var unknown => throw new InvalidOperationException($"Unknown speed test engine '{unknown}'."),
+            };
+        });
 
         return services;
     }
 
-    private static OptionsBuilder<T> AddCliOptions<T>(
-        IServiceCollection services,
+    // Keep backwards compatible overload for callers passing (configuration, dataPath)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
         IConfiguration configuration,
-        string sectionName,
-        Func<T, int> timeoutSeconds)
-        where T : class =>
-        services.AddOptions<T>()
-            .Bind(configuration.GetSection(sectionName))
-            .Validate(options => timeoutSeconds(options) > 0, $"{sectionName}:TimeoutSeconds must be greater than zero.")
-            .ValidateOnStart();
+        string dataPath) =>
+        services.AddInfrastructure(dataPath);
 }

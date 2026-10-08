@@ -107,3 +107,79 @@ describe('shared request response handling', () => {
     await expect(api.testNotification({ id: 1 })).rejects.toThrow('Request failed (503)')
   })
 })
+
+describe('settings API calls', () => {
+  it('fetches settings and parses the response list', async () => {
+    const sampleResponse = {
+      settings: [
+        {
+          key: 'speedtest.engine',
+          group: 'speedtest',
+          type: 'choice',
+          value: 'librespeed',
+          defaultValue: 'librespeed',
+          nullable: false,
+          source: 'default',
+          locked: false,
+          lockReason: null,
+          environmentVariable: 'SPEEDTEST__ENGINE',
+          options: ['librespeed', 'cloudflare', 'ookla'],
+          min: null,
+          max: null,
+          updatedAt: null,
+        },
+      ],
+    }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(sampleResponse), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await api.getSettings()
+
+    expect(result).toEqual(sampleResponse)
+    expect(fetchMock).toHaveBeenCalledWith('/api/settings', undefined)
+  })
+
+  it('sends PUT to /api/settings with values body wrapped', async () => {
+    const sampleResponse = { settings: [] }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(sampleResponse), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const payload = { 'speedtest.engine': 'cloudflare', 'speedtest.librespeed.timeoutSeconds': null }
+    const result = await api.updateSettings(payload)
+
+    expect(result).toEqual(sampleResponse)
+    expect(fetchMock).toHaveBeenCalledWith('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: payload }),
+    })
+  })
+
+  it('surfaces backend 400 invalid_setting error message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ code: 'invalid_setting', message: 'speedtest.librespeed.timeoutSeconds must be between 10 and 1800.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.updateSettings({ 'speedtest.librespeed.timeoutSeconds': 5 }))
+      .rejects.toThrow('speedtest.librespeed.timeoutSeconds must be between 10 and 1800.')
+  })
+
+  it('surfaces backend 409 setting_locked error message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ code: 'setting_locked', message: 'speedtest.engine is locked by environment variable SPEEDTEST__ENGINE.' }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.updateSettings({ 'speedtest.engine': 'ookla' }))
+      .rejects.toThrow('speedtest.engine is locked by environment variable SPEEDTEST__ENGINE.')
+  })
+})

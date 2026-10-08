@@ -27,6 +27,14 @@ function formatNumber(value: number | null | undefined, unit: string) {
 function formatTime(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '—'
 }
+function chartSummary(results: SpeedTestResult[], key: 'downloadMbps' | 'uploadMbps' | 'latencyMs' | 'jitterMs' | 'packetLossPercent') {
+  const values = results.map((r) => r[key]).filter((v): v is number => v != null)
+  if (!values.length) return { count: 0, min: null, max: null, latest: null }
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const latest = values[values.length - 1]
+  return { count: values.length, min, max, latest }
+}
 
 function Chart({ results }: { results: SpeedTestResult[] }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -35,14 +43,14 @@ function Chart({ results }: { results: SpeedTestResult[] }) {
     const color = (token: string) => css.getPropertyValue(token).trim()
     return {
       animation: false,
-      tooltip: { trigger: 'axis', backgroundColor: color('--surface'), borderColor: color('--line'), textStyle: { color: color('--text'), fontFamily: 'JetBrains Mono Variable, monospace' } },
-      legend: { bottom: 0, textStyle: { color: color('--muted'), fontFamily: 'JetBrains Mono Variable, monospace' } },
-      grid: { left: 45, right: 20, top: 18, bottom: 42 },
-      xAxis: { type: 'time', axisLabel: { color: color('--muted') }, axisLine: { lineStyle: { color: color('--line') } } },
-      yAxis: { type: 'value', axisLabel: { color: color('--muted') }, splitLine: { lineStyle: { color: color('--line') } } },
+      tooltip: { trigger: 'axis', backgroundColor: color('--surface'), borderColor: color('--line'), textStyle: { color: color('--text'), fontFamily: 'JetBrains Mono Variable, monospace', fontSize: 13 } },
+      legend: { bottom: 0, textStyle: { color: color('--muted'), fontFamily: 'JetBrains Mono Variable, monospace', fontSize: 13 } },
+      grid: { left: 52, right: 20, top: 20, bottom: 44 },
+      xAxis: { type: 'time', axisLabel: { color: color('--muted'), fontSize: 12 }, axisLine: { lineStyle: { color: color('--line') } } },
+      yAxis: { type: 'value', axisLabel: { color: color('--muted'), fontSize: 12 }, splitLine: { lineStyle: { color: color('--line') } } },
       series: [
-        { name: 'Download', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: color('--blue') }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
-        { name: 'Upload', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: color('--green') }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
+        { name: 'Download', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2.5 }, itemStyle: { color: color('--blue') }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
+        { name: 'Upload', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2.5, type: 'dashed' }, itemStyle: { color: color('--green') }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
       ],
     }
   }, [results])
@@ -57,26 +65,66 @@ function Chart({ results }: { results: SpeedTestResult[] }) {
     return () => { window.removeEventListener('resize', resize); chart.dispose() }
   }, [option])
 
-  return <div ref={ref} className="chart" aria-label="Download and upload history" />
+  const dl = chartSummary(results, 'downloadMbps')
+  const ul = chartSummary(results, 'uploadMbps')
+  const summaryLabel = `Throughput chart: download latest ${formatNumber(dl.latest, 'Mbps')}, upload latest ${formatNumber(ul.latest, 'Mbps')} over ${results.length} measurements.`
+
+  return (
+    <figure className="chart-figure" aria-label="Throughput history figure">
+      <div ref={ref} className="chart" role="img" aria-label={summaryLabel} />
+      <figcaption className="sr-only">
+        <table>
+          <caption>Throughput measurement summary</caption>
+          <thead>
+            <tr>
+              <th scope="col">Metric</th>
+              <th scope="col">Samples</th>
+              <th scope="col">Min</th>
+              <th scope="col">Max</th>
+              <th scope="col">Latest</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Download</th>
+              <td>{dl.count}</td>
+              <td>{formatNumber(dl.min, 'Mbps')}</td>
+              <td>{formatNumber(dl.max, 'Mbps')}</td>
+              <td>{formatNumber(dl.latest, 'Mbps')}</td>
+            </tr>
+            <tr>
+              <th scope="row">Upload</th>
+              <td>{ul.count}</td>
+              <td>{formatNumber(ul.min, 'Mbps')}</td>
+              <td>{formatNumber(ul.max, 'Mbps')}</td>
+              <td>{formatNumber(ul.latest, 'Mbps')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </figcaption>
+    </figure>
+  )
 }
+
 function QualityChart({ results }: { results: SpeedTestResult[] }) {
   const ref = useRef<HTMLDivElement>(null)
   const option = useMemo<EChartsOption>(() => {
     const css = getComputedStyle(document.documentElement)
-    const chronological = results
+    const color = (token: string) => css.getPropertyValue(token).trim()
     return {
-      tooltip: { trigger: 'axis', backgroundColor: css.getPropertyValue('--surface').trim(), borderColor: css.getPropertyValue('--line').trim(), textStyle: { color: css.getPropertyValue('--text').trim(), fontFamily: 'JetBrains Mono Variable, monospace' } },
-      legend: { bottom: 0, textStyle: { color: css.getPropertyValue('--muted').trim(), fontFamily: 'JetBrains Mono Variable, monospace' } },
-      grid: { left: 48, right: 54, top: 18, bottom: 42 },
-      xAxis: { type: 'time', axisLabel: { color: css.getPropertyValue('--muted').trim() }, axisLine: { lineStyle: { color: css.getPropertyValue('--line').trim() } } },
+      animation: false,
+      tooltip: { trigger: 'axis', backgroundColor: color('--surface'), borderColor: color('--line'), textStyle: { color: color('--text'), fontFamily: 'JetBrains Mono Variable, monospace', fontSize: 13 } },
+      legend: { bottom: 0, textStyle: { color: color('--muted'), fontFamily: 'JetBrains Mono Variable, monospace', fontSize: 13 } },
+      grid: { left: 52, right: 54, top: 20, bottom: 44 },
+      xAxis: { type: 'time', axisLabel: { color: color('--muted'), fontSize: 12 }, axisLine: { lineStyle: { color: color('--line') } } },
       yAxis: [
-        { type: 'value', name: 'ms', axisLabel: { color: css.getPropertyValue('--muted').trim() }, splitLine: { lineStyle: { color: css.getPropertyValue('--line').trim() } } },
-        { type: 'value', name: '%', position: 'right', axisLabel: { color: css.getPropertyValue('--muted').trim() }, splitLine: { show: false } },
+        { type: 'value', name: 'ms', axisLabel: { color: color('--muted'), fontSize: 12 }, splitLine: { lineStyle: { color: color('--line') } } },
+        { type: 'value', name: '%', position: 'right', axisLabel: { color: color('--muted'), fontSize: 12 }, splitLine: { show: false } },
       ],
       series: [
-        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: css.getPropertyValue('--yellow').trim() }, data: chronological.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
-        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: css.getPropertyValue('--violet').trim() }, data: chronological.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
-        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, yAxisIndex: 1, itemStyle: { color: css.getPropertyValue('--red').trim() }, data: chronological.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
+        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2.5 }, itemStyle: { color: color('--yellow') }, data: results.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
+        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2.5, type: 'dashed' }, itemStyle: { color: color('--violet') }, data: results.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
+        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2.5, type: 'dotted' }, yAxisIndex: 1, itemStyle: { color: color('--red') }, data: results.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
       ],
     }
   }, [results])
@@ -90,15 +138,70 @@ function QualityChart({ results }: { results: SpeedTestResult[] }) {
     return () => { window.removeEventListener('resize', resize); chart.dispose() }
   }, [option])
 
-  return <div ref={ref} className="chart" aria-label="Latency, jitter, and packet loss history" />
+  const lat = chartSummary(results, 'latencyMs')
+  const jit = chartSummary(results, 'jitterMs')
+  const summaryLabel = `Connection quality chart: latency latest ${formatNumber(lat.latest, 'ms')}, jitter latest ${formatNumber(jit.latest, 'ms')} over ${results.length} measurements.`
+
+  return (
+    <figure className="chart-figure" aria-label="Connection quality figure">
+      <div ref={ref} className="chart" role="img" aria-label={summaryLabel} />
+      <figcaption className="sr-only">
+        <table>
+          <caption>Connection quality measurement summary</caption>
+          <thead>
+            <tr>
+              <th scope="col">Metric</th>
+              <th scope="col">Samples</th>
+              <th scope="col">Min</th>
+              <th scope="col">Max</th>
+              <th scope="col">Latest</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Latency</th>
+              <td>{lat.count}</td>
+              <td>{formatNumber(lat.min, 'ms')}</td>
+              <td>{formatNumber(lat.max, 'ms')}</td>
+              <td>{formatNumber(lat.latest, 'ms')}</td>
+            </tr>
+            <tr>
+              <th scope="row">Jitter</th>
+              <td>{jit.count}</td>
+              <td>{formatNumber(jit.min, 'ms')}</td>
+              <td>{formatNumber(jit.max, 'ms')}</td>
+              <td>{formatNumber(jit.latest, 'ms')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </figcaption>
+    </figure>
+  )
 }
 
 function Metric({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return <div className="metric"><span>{label}</span><strong className={tone}>{value}</strong></div>
+  return (
+    <div className="metric">
+      <span>{label}</span>
+      <strong className={tone}>{value}</strong>
+    </div>
+  )
 }
 
 function BaselineMetric({ label, metric }: { label: string; metric: MetricBaseline }) {
-  return <div className="baseline-metric"><span>{label}</span>{metric.available ? <><strong>{formatNumber(metric.latestMbps, 'Mbps')}</strong><small>Baseline {formatNumber(metric.baselineMbps, 'Mbps')} · {metric.percentChange == null ? '—' : `${metric.percentChange >= 0 ? '+' : ''}${metric.percentChange.toFixed(1)}%`}</small></> : <small>Collecting baseline data · {metric.validSamples}/10 samples</small>}</div>
+  return (
+    <div className="baseline-metric">
+      <span>{label}</span>
+      {metric.available ? (
+        <>
+          <strong>{formatNumber(metric.latestMbps, 'Mbps')}</strong>
+          <small>Baseline {formatNumber(metric.baselineMbps, 'Mbps')} · {metric.percentChange == null ? '—' : `${metric.percentChange >= 0 ? '+' : ''}${metric.percentChange.toFixed(1)}%`}</small>
+        </>
+      ) : (
+        <small>Collecting baseline data · {metric.validSamples}/10 samples</small>
+      )}
+    </div>
+  )
 }
 
 function App() {
@@ -151,24 +254,63 @@ function App() {
   const error = latest.error ?? status.error ?? schedule.error ?? baseline.error ?? activeAlert.error ?? history.error ?? recent.error ?? run.error
   const baselineUnavailable: MetricBaseline = { available: false, validSamples: 0, baselineMbps: null, latestMbps: null, percentChange: null }
 
+  const runState = status.data?.state ?? 'idle'
+  const chipClass = `status-chip ${runState === 'running' ? 'running' : runState === 'failed' ? 'failed' : ''}`
+  const isRunning = runState === 'running' || run.isPending
+
   return (
     <main id="main-content" className="page-content dashboard-page">
       <header className="page-title">
-        <div><p className="kicker">Connection overview</p><h1>Network pulse</h1></div>
-        <div className="status-chip"><i className={status.data?.state === 'running' ? 'pulse' : ''} /> Test {status.data?.state ?? 'loading'}</div>
+        <div>
+          <p className="kicker">Connection overview</p>
+          <h1>Network pulse</h1>
+        </div>
+        <div className={chipClass} role="status" aria-live="polite">
+          <i className={`status-dot ${runState === 'running' ? 'pulse' : runState === 'idle' ? 'on' : ''}`} aria-hidden="true" />
+          <span>Test {runState}</span>
+        </div>
       </header>
       {error && <div className="error" role="alert">{error instanceof Error ? error.message : 'Could not load dashboard data.'}</div>}
-      {activeAlert.data && <section className="active-alert" aria-live="polite"><div><p className="kicker">Active degradation</p><strong>{activeAlert.data.reason}</strong><small>{activeAlert.data.notificationDeliveries.length ? activeAlert.data.notificationDeliveries.map((delivery) => `${delivery.provider}: ${delivery.status}`).join(' · ') : 'No provider notifications configured'}</small></div><div><span>{activeAlert.data.status}</span><small>Since {formatTime(activeAlert.data.startedAt)}</small></div></section>}
-      <section className="metrics">
+      {activeAlert.data && (
+        <section className="active-alert" aria-live="polite">
+          <div>
+            <p className="kicker">Active degradation</p>
+            <strong>{activeAlert.data.reason}</strong>
+            <small>{activeAlert.data.notificationDeliveries.length ? activeAlert.data.notificationDeliveries.map((delivery) => `${delivery.provider}: ${delivery.status}`).join(' · ') : 'No provider notifications configured'}</small>
+          </div>
+          <div>
+            <span>{activeAlert.data.status}</span>
+            <small>Since {formatTime(activeAlert.data.startedAt)}</small>
+          </div>
+        </section>
+      )}
+      <section className="metrics" aria-label="Key connection metrics">
         <Metric label="Download" value={formatNumber(latest.data?.downloadMbps, 'Mbps')} tone="blue" />
         <Metric label="Upload" value={formatNumber(latest.data?.uploadMbps, 'Mbps')} tone="green" />
         <Metric label="Latency" value={formatNumber(latest.data?.latencyMs, 'ms')} tone="white" />
         <Metric label="Jitter" value={formatNumber(latest.data?.jitterMs, 'ms')} tone="violet" />
         <Metric label="Packet loss" value={formatNumber(latest.data?.packetLossPercent, '%')} tone="rose" />
-        <div className="action-metric"><span>Last test · {formatTime(latest.data?.timestamp)}</span><Button disabled={status.data?.state === 'running' || run.isPending} onClick={() => run.mutate()}>{run.isPending || status.data?.state === 'running' ? 'Running…' : 'Run speed test'}</Button></div>
+        <div className="action-metric">
+          <span>Last test · {formatTime(latest.data?.timestamp)}</span>
+          <Button
+            disabled={isRunning}
+            aria-disabled={isRunning}
+            onClick={() => {
+              if (!isRunning) run.mutate()
+            }}
+          >
+            {isRunning ? 'Running…' : 'Run speed test'}
+          </Button>
+        </div>
       </section>
       <section className="panel baseline">
-        <div className="panel-head"><div><p className="kicker">Seven-day baseline</p><h2>Current vs baseline</h2></div><span className="muted">{baseline.isLoading ? 'Loading…' : 'Successful measurements only'}</span></div>
+        <div className="panel-head">
+          <div>
+            <p className="kicker">Seven-day baseline</p>
+            <h2>Current vs baseline</h2>
+          </div>
+          <span className="muted">{baseline.isLoading ? 'Loading…' : 'Successful measurements only'}</span>
+        </div>
         <div className="baseline-grid">
           <BaselineMetric label="Download" metric={baseline.data?.download ?? baselineUnavailable} />
           <BaselineMetric label="Upload" metric={baseline.data?.upload ?? baselineUnavailable} />
@@ -177,25 +319,118 @@ function App() {
       <section className="workspace">
         <div className="panel chart-panel">
           <div className="panel-head">
-            <div><p className="kicker">Throughput</p><h2>Speed history</h2></div>
-            <div className="range-tabs">{([...Object.keys(ranges), 'Custom'] as Range[]).map((item) => <Button variant="ghost" size="sm" className={range === item ? 'selected' : ''} key={item} onClick={() => setRange(item)}>{item}</Button>)}</div>
+            <div>
+              <p className="kicker">Throughput</p>
+              <h2>Speed history</h2>
+            </div>
+            <div className="range-tabs" role="group" aria-label="Time range">
+              {([...Object.keys(ranges), 'Custom'] as Range[]).map((item) => (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={range === item ? 'selected' : ''}
+                  key={item}
+                  aria-pressed={range === item}
+                  onClick={() => setRange(item)}
+                >
+                  {item}
+                </Button>
+              ))}
+            </div>
           </div>
-          {range === 'Custom' && <div className="chart-dates"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
-          {history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <Chart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}
+          {range === 'Custom' && (
+            <div className="chart-dates">
+              <label>
+                <span>From</span>
+                <input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} />
+              </label>
+              <label>
+                <span>To</span>
+                <input type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} />
+              </label>
+            </div>
+          )}
+          {history.isLoading ? (
+            <div className="empty">Loading measurements…</div>
+          ) : history.data?.length ? (
+            <Chart results={history.data} />
+          ) : (
+            <div className="empty">No measurements in selected range.</div>
+          )}
         </div>
-        <aside className="panel schedule">
-          <p className="kicker">Schedule</p>
-          <div className="schedule-state"><i className={schedule.data?.enabled ? 'on' : ''} /> {schedule.data?.enabled ? 'Enabled' : 'Disabled'}</div>
-          <dl><dt>Expression</dt><dd>{schedule.data?.cronExpression ?? '—'}</dd><dt>Timezone</dt><dd>{schedule.data?.timezone ?? '—'}</dd><dt>Next run</dt><dd>{formatTime(schedule.data?.nextRuns[0])}</dd></dl>
+        <aside className="panel schedule" aria-labelledby="schedule-heading">
+          <p id="schedule-heading" className="kicker">Schedule</p>
+          <div className="schedule-state">
+            <i className={`status-dot ${schedule.data?.enabled ? 'on' : ''}`} aria-hidden="true" />
+            <span>{schedule.data?.enabled ? 'Enabled' : 'Disabled'}</span>
+          </div>
+          <dl>
+            <dt>Expression</dt>
+            <dd>{schedule.data?.cronExpression ?? '—'}</dd>
+            <dt>Timezone</dt>
+            <dd>{schedule.data?.timezone ?? '—'}</dd>
+            <dt>Next run</dt>
+            <dd>{formatTime(schedule.data?.nextRuns[0])}</dd>
+          </dl>
         </aside>
       </section>
       <section className="panel quality-panel">
-        <div className="panel-head"><div><p className="kicker">Connection quality</p><h2>Latency and jitter</h2></div><span className="muted">{history.data?.length ?? 0} measurements in selected range · packet loss only reported by some engines</span></div>
-        {history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <QualityChart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}
+        <div className="panel-head">
+          <div>
+            <p className="kicker">Connection quality</p>
+            <h2>Latency and jitter</h2>
+          </div>
+          <span className="muted">{history.data?.length ?? 0} measurements in selected range · packet loss only reported by some engines</span>
+        </div>
+        {history.isLoading ? (
+          <div className="empty">Loading measurements…</div>
+        ) : history.data?.length ? (
+          <QualityChart results={history.data} />
+        ) : (
+          <div className="empty">No measurements in selected range.</div>
+        )}
       </section>
       <section className="panel recent">
-        <div className="panel-head"><div><p className="kicker">Recent measurements</p><h2>Latest readings</h2></div><span className="muted">{latest.data ? `Updated ${formatTime(latest.data.timestamp)}` : '—'}</span></div>
-        {recent.isLoading ? <div className="empty">Loading recent measurements…</div> : recent.data?.items.length ? <div className="table-wrap"><table><thead><tr><th>Time</th><th>Download</th><th>Upload</th><th>Latency</th><th>Jitter</th><th>Result</th></tr></thead><tbody>{recent.data.items.map((item) => <tr key={item.id}><td>{formatTime(item.timestamp)}</td><td>{formatNumber(item.downloadMbps, 'Mbps')}</td><td>{formatNumber(item.uploadMbps, 'Mbps')}</td><td>{formatNumber(item.latencyMs, 'ms')}</td><td>{formatNumber(item.jitterMs, 'ms')}</td><td className={item.success ? 'success' : 'failure'}>{item.success ? 'Success' : 'Failed'}</td></tr>)}</tbody></table></div> : <div className="empty">No tests have been recorded yet.</div>}
+        <div className="panel-head">
+          <div>
+            <p className="kicker">Recent measurements</p>
+            <h2>Latest readings</h2>
+          </div>
+          <span className="muted">{latest.data ? `Updated ${formatTime(latest.data.timestamp)}` : '—'}</span>
+        </div>
+        {recent.isLoading ? (
+          <div className="empty">Loading recent measurements…</div>
+        ) : recent.data?.items.length ? (
+          <div className="table-wrap" tabIndex={0} role="region" aria-label="Recent measurements table">
+            <table>
+              <caption className="sr-only">Recent speed test results</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Time</th>
+                  <th scope="col">Download</th>
+                  <th scope="col">Upload</th>
+                  <th scope="col">Latency</th>
+                  <th scope="col">Jitter</th>
+                  <th scope="col">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.data.items.map((item) => (
+                  <tr key={item.id}>
+                    <td>{formatTime(item.timestamp)}</td>
+                    <td>{formatNumber(item.downloadMbps, 'Mbps')}</td>
+                    <td>{formatNumber(item.uploadMbps, 'Mbps')}</td>
+                    <td>{formatNumber(item.latencyMs, 'ms')}</td>
+                    <td>{formatNumber(item.jitterMs, 'ms')}</td>
+                    <td className={item.success ? 'success' : 'failure'}>{item.success ? 'Success' : 'Failed'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty">No tests have been recorded yet.</div>
+        )}
       </section>
     </main>
   )

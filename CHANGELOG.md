@@ -5,6 +5,11 @@ All notable changes to Wanetra will be documented here.
 ## Unreleased
 
 ### Added
+- Runtime settings system with `GET`/`PUT /api/settings`: change speed-test engine,
+  timeout, server ID, and retention days via UI or API without container restart.
+  Supports precedence env > stored > default; non-empty env variables lock fields in the UI.
+  Restricted executable paths remain configurable only via environment variables for security.
+  Ookla license acceptance can be given and stored via the UI. Replaces `GET /api/settings/retention`.
 
 - Cloudflare and Ookla speed-test engines alongside LibreSpeed, selected with
   `SpeedTest__Engine`. Cloudflare wraps checksum-verified `cfspeedtest` 2.2.2,

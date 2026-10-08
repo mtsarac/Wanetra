@@ -38,18 +38,59 @@ export default function ScheduleSettings() {
 
   return (
     <section className="panel settings-panel">
-      <div className="panel-head"><div><p className="kicker">Schedule</p><h2>Automatic speed tests</h2></div><span className="muted">Cron uses the selected IANA timezone</span></div>
-      {schedule.isLoading ? <div className="empty">Loading schedule…</div> : (
+      <div className="panel-head">
+        <div>
+          <p className="kicker">Schedule</p>
+          <h2>Automatic speed tests</h2>
+        </div>
+        <span className="muted">Cron uses the selected IANA timezone</span>
+      </div>
+      {schedule.isLoading ? (
+        <div className="empty">Loading schedule…</div>
+      ) : (
         <form onSubmit={submit}>
-          <label className="setting-check"><input type="checkbox" checked={values.enabled} onChange={(event) => setDraft({ ...values, enabled: event.target.checked })} /> Enable scheduled tests</label>
+          <label className="setting-check">
+            <input type="checkbox" checked={values.enabled} onChange={(event) => setDraft({ ...values, enabled: event.target.checked })} />
+            <span>Enable scheduled tests</span>
+          </label>
           <div className="settings-grid">
-            <label><span>Cron expression</span><input value={values.cronExpression} onChange={(event) => setDraft({ ...values, cronExpression: event.target.value })} placeholder="*/30 * * * *" required /></label>
-            <label><span>Timezone</span><input value={values.timezone} onChange={(event) => setDraft({ ...values, timezone: event.target.value })} placeholder="Europe/Istanbul" required /></label>
+            <label>
+              <span>Cron expression</span>
+              <input value={values.cronExpression} onChange={(event) => setDraft({ ...values, cronExpression: event.target.value })} placeholder="*/30 * * * *" required />
+            </label>
+            <label>
+              <span>Timezone</span>
+              <input value={values.timezone} onChange={(event) => setDraft({ ...values, timezone: event.target.value })} placeholder="Europe/Istanbul" required />
+            </label>
           </div>
-          <div className="form-actions"><Button type="submit" disabled={save.isPending || schedule.isLoading}>{save.isPending ? 'Saving…' : 'Save schedule'}</Button>{message && <span className={save.isError ? 'failure' : 'success'} role="status">{message}</span>}</div>
+          <div className="form-actions">
+            <Button
+              type="submit"
+              disabled={save.isPending || schedule.isLoading}
+              aria-disabled={save.isPending || schedule.isLoading}
+            >
+              {save.isPending ? 'Saving…' : 'Save schedule'}
+            </Button>
+            {message && (
+              <span className={save.isError ? 'failure' : 'success'} role={save.isError ? 'alert' : 'status'}>
+                {message}
+              </span>
+            )}
+          </div>
         </form>
       )}
-      {schedule.data?.enabled && <div className="next-runs"><strong>Upcoming runs</strong>{schedule.data.nextRuns.length ? <ol>{schedule.data.nextRuns.map((run) => <li key={run}>{displayTime(run)}</li>)}</ol> : <p className="muted">No upcoming run is currently available.</p>}</div>}
+      {schedule.data?.enabled && (
+        <div className="next-runs">
+          <h3>Upcoming runs</h3>
+          {schedule.data.nextRuns.length ? (
+            <ol>
+              {schedule.data.nextRuns.map((run) => <li key={run}>{displayTime(run)}</li>)}
+            </ol>
+          ) : (
+            <p className="muted">No upcoming run is currently available.</p>
+          )}
+        </div>
+      )}
       {(schedule.error || save.error) && <div className="error" role="alert">{(schedule.error ?? save.error)?.message}</div>}
     </section>
   )

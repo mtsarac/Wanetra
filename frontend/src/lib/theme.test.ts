@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { applyTheme, defaultTheme, readTheme, themeStorageKey } from './theme'
+import { applyTheme, defaultTheme, readTheme, themes, themeStorageKey } from './theme'
 
 afterEach(() => {
   localStorage.clear()
@@ -21,5 +21,15 @@ describe('theme preference', () => {
     localStorage.setItem(themeStorageKey, 'not-a-theme')
 
     expect(readTheme()).toBe(defaultTheme)
+  })
+
+  it('defines 21 distinct themes and applies each correctly', () => {
+    expect(themes).toHaveLength(21)
+    for (const theme of themes) {
+      applyTheme(theme.id)
+      expect(document.documentElement.dataset.theme).toBe(theme.id)
+      expect(document.documentElement.dataset.themeMode).toBe(theme.mode)
+      expect(readTheme()).toBe(theme.id)
+    }
   })
 })

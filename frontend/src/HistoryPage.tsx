@@ -24,7 +24,7 @@ function failureKindLabel(kind: SpeedTestResult['failureKind']) {
 
 function Details({ result }: { result: SpeedTestResult }) {
   return (
-    <section className="detail-panel" aria-label={`Details for test ${result.id}`}>
+    <section id={`details-${result.id}`} className="detail-panel" aria-label={`Details for test ${result.id}`}>
       <div><span>Server</span><strong>{result.serverName ?? '—'}</strong></div>
       <div><span>Location</span><strong>{result.serverLocation ?? '—'}</strong></div>
       <div><span>Engine</span><strong>{result.engine}</strong></div>
@@ -62,33 +62,141 @@ export default function HistoryPage() {
     setSelectedId(null)
   }
 
+  const totalCount = query.data?.totalCount
+  const hasNext = query.data ? page < query.data.totalPages : false
+  const hasPrev = page > 1
+
   return (
     <main id="main-content" className="page-content">
-      <header className="page-title"><div><p className="kicker">Measurement archive</p><h1>History</h1></div><span className="muted">{query.data ? `${query.data.totalCount} results` : 'Filtering saved tests'}</span></header>
+      <header className="page-title">
+        <div>
+          <p className="kicker">Measurement archive</p>
+          <h1>History</h1>
+        </div>
+        <span className="muted" role="status" aria-live="polite">
+          {totalCount != null ? `${totalCount} results` : 'Filtering saved tests'}
+        </span>
+      </header>
       <section className="panel history-panel">
-        <div className="filter-bar">
-          <label><span>From</span><input type="date" value={from} max={to || undefined} onChange={(event) => updateFilter(() => setFrom(event.target.value))} /></label>
-          <label><span>To</span><input type="date" value={to} min={from || undefined} onChange={(event) => updateFilter(() => setTo(event.target.value))} /></label>
-          <label><span>Outcome</span><select value={outcome} onChange={(event) => updateFilter(() => setOutcome(event.target.value as typeof outcome))}><option value="all">All tests</option><option value="success">Successful</option><option value="failed">Failed</option></select></label>
-          <label><span>Sort</span><select value={sort} onChange={(event) => updateFilter(() => setSort(event.target.value as typeof sort))}><option value="desc">Newest first</option><option value="asc">Oldest first</option></select></label>
+        <div className="filter-bar" role="search" aria-label="Filter speed test history">
+          <label>
+            <span>From</span>
+            <input type="date" value={from} max={to || undefined} onChange={(event) => updateFilter(() => setFrom(event.target.value))} />
+          </label>
+          <label>
+            <span>To</span>
+            <input type="date" value={to} min={from || undefined} onChange={(event) => updateFilter(() => setTo(event.target.value))} />
+          </label>
+          <label>
+            <span>Outcome</span>
+            <select value={outcome} onChange={(event) => updateFilter(() => setOutcome(event.target.value as typeof outcome))}>
+              <option value="all">All tests</option>
+              <option value="success">Successful</option>
+              <option value="failed">Failed</option>
+            </select>
+          </label>
+          <label>
+            <span>Sort</span>
+            <select value={sort} onChange={(event) => updateFilter(() => setSort(event.target.value as typeof sort))}>
+              <option value="desc">Newest first</option>
+              <option value="asc">Oldest first</option>
+            </select>
+          </label>
         </div>
         {query.error && <div className="error" role="alert">{query.error.message}</div>}
-        {query.isLoading ? <div className="empty">Loading speed tests…</div> : query.data?.items.length ? (
-          <div className="table-wrap">
-            <table className="history-table"><thead><tr><th>Timestamp</th><th>Download</th><th>Upload</th><th>Latency</th><th>Jitter</th><th>Packet loss</th><th>Server</th><th>Engine</th><th>Status</th><th /></tr></thead>
-              <tbody>{query.data.items.map((result) => (
-                <Fragment key={result.id}>
-                  <tr>
-                    <td>{formatTime(result.timestamp)}</td><td>{metric(result.downloadMbps, 'Mbps')}</td><td>{metric(result.uploadMbps, 'Mbps')}</td><td>{metric(result.latencyMs, 'ms')}</td><td>{metric(result.jitterMs, 'ms')}</td><td>{metric(result.packetLossPercent, '%')}</td><td>{result.serverName ?? '—'}</td><td>{result.engine}</td><td className={result.success ? 'success' : 'failure'}>{result.success ? 'Success' : 'Failed'}</td>
-                    <td><Button variant="ghost" size="sm" onClick={() => setSelectedId(selectedId === result.id ? null : result.id)}>{selectedId === result.id ? 'Hide' : 'Details'}</Button></td>
-                  </tr>
-                  {selectedId === result.id && <tr><td colSpan={10}><Details result={result} /></td></tr>}
-                </Fragment>
-              ))}</tbody>
+        {query.isLoading ? (
+          <div className="empty">Loading speed tests…</div>
+        ) : query.data?.items.length ? (
+          <div className="table-wrap" tabIndex={0} role="region" aria-label="Speed test history table">
+            <table className="history-table">
+              <caption className="sr-only">Speed test history, page {query.data.page} of {query.data.totalPages}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Timestamp</th>
+                  <th scope="col">Download</th>
+                  <th scope="col">Upload</th>
+                  <th scope="col">Latency</th>
+                  <th scope="col">Jitter</th>
+                  <th scope="col">Packet loss</th>
+                  <th scope="col">Server</th>
+                  <th scope="col">Engine</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {query.data.items.map((result) => {
+                  const isExpanded = selectedId === result.id
+                  return (
+                    <Fragment key={result.id}>
+                      <tr>
+                        <td>{formatTime(result.timestamp)}</td>
+                        <td>{metric(result.downloadMbps, 'Mbps')}</td>
+                        <td>{metric(result.uploadMbps, 'Mbps')}</td>
+                        <td>{metric(result.latencyMs, 'ms')}</td>
+                        <td>{metric(result.jitterMs, 'ms')}</td>
+                        <td>{metric(result.packetLossPercent, '%')}</td>
+                        <td>{result.serverName ?? '—'}</td>
+                        <td>{result.engine}</td>
+                        <td className={result.success ? 'success' : 'failure'}>{result.success ? 'Success' : 'Failed'}</td>
+                        <td>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-expanded={isExpanded}
+                            aria-controls={`details-${result.id}`}
+                            onClick={() => setSelectedId(isExpanded ? null : result.id)}
+                          >
+                            {isExpanded ? 'Hide' : 'Details'}
+                            <span className="sr-only"> for test {result.id}</span>
+                          </Button>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={10}>
+                            <Details result={result} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
             </table>
           </div>
-        ) : <div className="empty">No measurements match these filters.</div>}
-        {query.data && query.data.totalPages > 1 && <div className="pagination"><span>Page {query.data.page} of {query.data.totalPages}</span><div><Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page >= query.data!.totalPages} onClick={() => setPage((current) => current + 1)}>Next</Button></div></div>}
+        ) : (
+          <div className="empty">No measurements match these filters.</div>
+        )}
+        {query.data && query.data.totalPages > 1 && (
+          <div className="pagination" role="navigation" aria-label="History pagination">
+            <span>Page {query.data.page} of {query.data.totalPages}</span>
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!hasPrev}
+                aria-disabled={!hasPrev}
+                onClick={() => {
+                  if (hasPrev) setPage((current) => current - 1)
+                }}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!hasNext}
+                aria-disabled={!hasNext}
+                onClick={() => {
+                  if (hasNext) setPage((current) => current + 1)
+                }}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   )

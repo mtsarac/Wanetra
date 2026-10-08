@@ -96,9 +96,33 @@ export type DegradationEvent = {
   notificationDeliveries: NotificationDelivery[]
 }
 
-export type RetentionSettings = {
-  days: number
+export type SettingType = 'choice' | 'integer' | 'boolean' | 'text'
+export type SettingGroup = 'speedtest' | 'retention'
+export type SettingSource = 'default' | 'stored' | 'environment'
+export type SettingLockReason = 'environment' | 'restricted'
+
+export type Setting = {
+  key: string
+  group: SettingGroup
+  type: SettingType
+  value: string | number | boolean | null
+  defaultValue: string | number | boolean | null
+  nullable: boolean
+  source: SettingSource
+  locked: boolean
+  lockReason: SettingLockReason | null
+  environmentVariable: string
+  options: string[] | null
+  min: number | null
+  max: number | null
+  updatedAt: string | null
 }
+
+export type SettingsResponse = {
+  settings: Setting[]
+}
+
+export type SettingUpdates = Record<string, string | number | boolean | null>
 
 export type MetricBaseline = {
   available: boolean
@@ -184,7 +208,13 @@ export const api = {
       body: JSON.stringify(schedule),
     }),
   getBaseline: () => request<Baseline>('/api/baseline'),
-  getRetentionSettings: () => request<RetentionSettings>('/api/settings/retention'),
+  getSettings: () => request<SettingsResponse>('/api/settings'),
+  updateSettings: (values: SettingUpdates) =>
+    request<SettingsResponse>('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values }),
+    }),
   getAlertRule: async () => {
     const response = await fetch('/api/alerts/rule')
     if (response.status === 404) return null
