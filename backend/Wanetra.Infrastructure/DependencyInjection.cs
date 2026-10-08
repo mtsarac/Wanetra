@@ -59,7 +59,10 @@ public static class DependencyInjection
                     httpClient,
                     Path.Combine(dataPath, "ookla"),
                     OoklaRelease.ForCurrentPlatform,
-                    provider.GetRequiredService<ILogger<OoklaBinaryInstaller>>()));
+                    provider.GetRequiredService<ILogger<OoklaBinaryInstaller>>()))
+                    // The archive is about 1 MB. Cap the wait so a host that drops packets reaches
+                    // the ExecutablePath fallback quickly instead of after the 100 s default.
+                    .ConfigureHttpClient(httpClient => httpClient.Timeout = TimeSpan.FromSeconds(30));
                 services.AddScoped<ISpeedTestEngine, OoklaSpeedEngine>();
                 break;
             default:

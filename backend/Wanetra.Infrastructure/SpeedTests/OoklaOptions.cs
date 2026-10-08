@@ -4,9 +4,10 @@ public sealed class OoklaOptions
 {
     public const string SectionName = "SpeedTest:Ookla";
 
-    // The Ookla binary is proprietary and is never bundled in the Wanetra image. Leave this unset
-    // and Wanetra downloads the official CLI from Ookla into the data directory on first use.
-    // Set it to run a binary you installed yourself (nothing is downloaded then).
+    // The Ookla binary is proprietary and is never bundled in the Wanetra image. Wanetra downloads
+    // the official CLI from Ookla into the data directory on first use. ExecutablePath is the
+    // fallback for when that download fails (offline host, URL gone, checksum mismatch): it must
+    // point at a binary you installed yourself.
     public string? ExecutablePath { get; set; }
 
     public int? ServerId { get; set; }

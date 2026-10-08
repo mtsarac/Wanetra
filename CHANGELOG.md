@@ -11,8 +11,10 @@ All notable changes to Wanetra will be documented here.
   bundled for amd64 and arm64. Ookla uses the official Speedtest CLI, which is
   not bundled because its EULA forbids redistribution: with
   `SpeedTest__Ookla__AcceptLicense=true` Wanetra downloads the sha256-pinned
-  official binary from Ookla into the data directory on first use (or runs your
-  own via `SpeedTest__Ookla__ExecutablePath`). Ookla also reports packet loss.
+  official binary from Ookla into the data directory on first use, and falls
+  back to your own binary at `SpeedTest__Ookla__ExecutablePath` if that download
+  fails. Ookla also reports packet loss.
+- `docs/RELEASING.md` for the maintainer release process, moved out of the README.
 - Added a persistent 21-theme light/dark palette selector and self-hosted JetBrains Mono typography.
 - Initial repository bootstrap.
 - SQLite persistence with EF Core: speed test results, schedule settings, alert

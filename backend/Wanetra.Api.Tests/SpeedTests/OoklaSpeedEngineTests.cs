@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
@@ -8,6 +9,9 @@ namespace Wanetra.Api.Tests.SpeedTests;
 
 public class OoklaSpeedEngineTests
 {
+    private const string InstalledPath = "/data/ookla/1.2.0/speedtest";
+    private const string FallbackPath = "/opt/ookla/speedtest";
+
     private const string SampleOutput = """
         {"type":"result","timestamp":"2026-10-08T10:00:00Z",
          "ping":{"jitter":0.7,"latency":10.3,"low":9.8,"high":11.2},
@@ -59,11 +63,11 @@ public class OoklaSpeedEngineTests
     public async Task Runs_non_interactively_with_the_configured_server()
     {
         var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
-        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = "/opt/ookla/speedtest", ServerId = 42 });
+        var engine = CreateEngine(runner, new OoklaOptions { ServerId = 42 });
 
         await engine.RunAsync(CancellationToken.None);
 
-        Assert.Equal("/opt/ookla/speedtest", runner.FileName);
+        Assert.Equal(InstalledPath, runner.FileName);
         Assert.Equal(
             new[] { "--format=json", "--progress=no", "--accept-license", "--accept-gdpr", "--server-id=42" },
             runner.Arguments);
@@ -127,31 +131,61 @@ public class OoklaSpeedEngineTests
     }
 
     [Fact]
-    public async Task Runs_an_explicit_executable_without_installing_anything()
+    public async Task Prefers_the_downloaded_binary_over_a_configured_executable_path()
     {
-        var binary = new StubOoklaBinary("/data/ookla/1.2.0/speedtest");
+        var binary = new StubOoklaBinary(InstalledPath);
         var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
-        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = "/opt/ookla/speedtest" }, binary);
+        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = FallbackPath }, binary);
 
         await engine.RunAsync(CancellationToken.None);
 
-        Assert.Equal("/opt/ookla/speedtest", runner.FileName);
-        Assert.Equal(0, binary.Calls);
+        Assert.Equal(InstalledPath, runner.FileName);
+        Assert.Equal(1, binary.Calls);
+    }
+
+    [Theory]
+    [InlineData(SpeedTestFailureKind.NetworkFailure)]
+    [InlineData(SpeedTestFailureKind.LocalExecutionFailure)]
+    public async Task Falls_back_to_the_configured_executable_path_when_the_download_fails(SpeedTestFailureKind failureKind)
+    {
+        var binary = new StubOoklaBinary(InstalledPath, new SpeedTestExecutionException(failureKind, "download failed"));
+        var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
+        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = FallbackPath }, binary);
+
+        var result = await engine.RunAsync(CancellationToken.None);
+
+        Assert.Equal(FallbackPath, runner.FileName);
+        Assert.Equal("ookla", result.Engine);
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("  ")]
-    public async Task Runs_the_installed_binary_when_no_executable_is_configured(string? configured)
+    public async Task Reports_the_download_failure_when_no_fallback_path_is_configured(string? configured)
     {
-        var binary = new StubOoklaBinary("/data/ookla/1.2.0/speedtest");
+        var binary = new StubOoklaBinary(
+            InstalledPath,
+            new SpeedTestExecutionException(SpeedTestFailureKind.NetworkFailure, "Could not download the Ookla Speedtest CLI."));
         var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
         var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = configured }, binary);
 
-        await engine.RunAsync(CancellationToken.None);
+        var error = await Assert.ThrowsAsync<SpeedTestExecutionException>(
+            () => engine.RunAsync(CancellationToken.None));
 
-        Assert.Equal("/data/ookla/1.2.0/speedtest", runner.FileName);
-        Assert.Equal(1, binary.Calls);
+        Assert.Equal(SpeedTestFailureKind.NetworkFailure, error.FailureKind);
+        Assert.Null(runner.FileName);
+    }
+
+    [Fact]
+    public async Task Does_not_mistake_cancellation_during_the_download_for_a_reason_to_fall_back()
+    {
+        var binary = new StubOoklaBinary(InstalledPath, new OperationCanceledException());
+        var runner = new StubProcessRunner(new ProcessResult(0, SampleOutput, string.Empty));
+        var engine = CreateEngine(runner, new OoklaOptions { ExecutablePath = FallbackPath }, binary);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => engine.RunAsync(CancellationToken.None));
+
+        Assert.Null(runner.FileName);
     }
 
     [Theory]
@@ -175,17 +209,18 @@ public class OoklaSpeedEngineTests
         IOoklaBinary? binary = null) =>
         new(
             runner,
-            Options.Create(options ?? new OoklaOptions { ExecutablePath = "speedtest" }),
-            binary ?? new StubOoklaBinary("/unused"));
+            Options.Create(options ?? new OoklaOptions()),
+            binary ?? new StubOoklaBinary(InstalledPath),
+            NullLogger<OoklaSpeedEngine>.Instance);
 
-    private sealed class StubOoklaBinary(string path) : IOoklaBinary
+    private sealed class StubOoklaBinary(string path, Exception? failure = null) : IOoklaBinary
     {
         public int Calls { get; private set; }
 
         public Task<string> EnsureInstalledAsync(CancellationToken cancellationToken)
         {
             Calls++;
-            return Task.FromResult(path);
+            return failure is null ? Task.FromResult(path) : Task.FromException<string>(failure);
         }
     }
 }
