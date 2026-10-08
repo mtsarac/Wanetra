@@ -9,6 +9,7 @@ services:
       TZ: ${TZ:-Europe/Istanbul}
       WANETRA_DATA_PATH: ${WANETRA_DATA_PATH:-/data}
       DataRetention__Days: ${DataRetention__Days:-365}
+      SpeedTest__Engine: ${SpeedTest__Engine:-librespeed}
     volumes:
       - wanetra-data:/data
 

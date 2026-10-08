@@ -6,6 +6,11 @@ All notable changes to Wanetra will be documented here.
 
 ### Added
 
+- Cloudflare and Ookla speed-test engines alongside LibreSpeed, selected with
+  `SpeedTest__Engine`. Cloudflare wraps checksum-verified `cfspeedtest` 2.2.2,
+  bundled for amd64 and arm64. Ookla uses the official Speedtest CLI, which is
+  not bundled because its EULA forbids redistribution; it requires a mounted
+  binary and `SpeedTest__Ookla__AcceptLicense=true`. Ookla also reports packet loss.
 - Added a persistent 21-theme light/dark palette selector and self-hosted JetBrains Mono typography.
 - Initial repository bootstrap.
 - SQLite persistence with EF Core: speed test results, schedule settings, alert

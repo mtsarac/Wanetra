@@ -31,7 +31,7 @@ const thresholds: { key: NumericThreshold; label: string; unit: string; percent?
   { key: 'minUploadMbps', label: 'Minimum upload', unit: 'Mbps' },
   { key: 'maxLatencyMs', label: 'Maximum latency', unit: 'ms' },
   { key: 'maxJitterMs', label: 'Maximum jitter', unit: 'ms' },
-  { key: 'maxPacketLossPercent', label: 'Maximum packet loss', unit: '%', note: 'Unavailable with LibreSpeed; this threshold is not applied.' },
+  { key: 'maxPacketLossPercent', label: 'Maximum packet loss', unit: '%', note: 'Only applied when the speed-test engine reports packet loss (Ookla).' },
   { key: 'downloadBaselineDropPercent', label: 'Download drop from baseline', unit: '%', percent: true },
   { key: 'uploadBaselineDropPercent', label: 'Upload drop from baseline', unit: '%', percent: true },
 ]
@@ -114,7 +114,6 @@ export default function AlertSettings() {
                     value={values[key] ?? ''}
                     onChange={(event) => setThreshold(key, event.target.value)}
                     placeholder="Disabled"
-                    disabled={note !== undefined}
                   />
                   {note && <small className="muted">{note}</small>}
                 </label>
