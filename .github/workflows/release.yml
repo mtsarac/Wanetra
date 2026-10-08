@@ -89,5 +89,10 @@ jobs:
             echo "Existing release is draft or does not match tag; refusing to overwrite." >&2
             exit 1
           else
-            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --latest=false
+            newest="$(git tag --list 'v[0-9]*' --merged origin/main --sort=-version:refname | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | head -n 1 || true)"
+            latest=false
+            if [[ "$newest" == "$GITHUB_REF_NAME" ]]; then
+              latest=true
+            fi
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --latest="$latest"
           fi
