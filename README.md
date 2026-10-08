@@ -14,7 +14,7 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 
 - ASP.NET Core health endpoints: `/health`, `/health/live`, `/health/ready`
 - SQLite storage with EF Core migrations applied at startup
-- LibreSpeed speed tests with single-run concurrency and paged history
+- LibreSpeed, Cloudflare, or Ookla speed tests (one active engine) with single-run concurrency and paged history
 - Cron scheduling with timezone-aware next-run previews
 - React dashboard with current metrics, history charts, and rolling baselines
 - Persistent degradation detection with ntfy and generic webhook notifications
@@ -30,10 +30,51 @@ Wanetra will collect WAN speed and connection-health measurements, retain histor
 | `WANETRA_PORT` | `8080` | Host port in the example Compose file |
 | `WANETRA_BIND_ADDRESS` | `127.0.0.1` | Host interface published by the example Compose file |
 | `DataRetention__Days` | `365` | Days of speed-test history to retain |
+| `SpeedTest__Engine` | `librespeed` | Active speed-test engine: `librespeed`, `cloudflare`, or `ookla` |
 | `TZ` | `Europe/Istanbul` | Container timezone |
 
 Retention cleanup runs at startup and then every 24 hours. Results exactly on
 the cutoff remain; only older results are deleted.
+
+### Speed-test engines
+
+Exactly one engine runs at a time; change `SpeedTest__Engine` and restart. Every
+result records its `engine`, and `GET /api/speedtests?engine=` filters on it.
+Different engines use different servers and methods, so their numbers are not
+comparable. Switching engines mixes them into the same alert baseline until
+the old results age out of the baseline window.
+
+| Engine | Binary | Bundled in image | Packet loss |
+| --- | --- | --- | --- |
+| `librespeed` | [librespeed-cli](https://github.com/librespeed/speedtest-cli) | yes | no |
+| `cloudflare` | [cfspeedtest](https://github.com/code-inflation/cfspeedtest), an unofficial CLI for speed.cloudflare.com | yes | no |
+| `ookla` | Official [Speedtest CLI](https://www.speedtest.net/apps/cli) | **no** | when available |
+
+Each engine reads `SpeedTest__<Engine>__ExecutablePath` and
+`SpeedTest__<Engine>__TimeoutSeconds` (for example
+`SpeedTest__Cloudflare__TimeoutSeconds`). `librespeed` and `ookla` also accept
+`SpeedTest__<Engine>__ServerId`.
+
+Cloudflare download and upload are the median of the largest payload size that
+produced samples. Latency is the median of its latency samples and jitter is
+the mean difference between consecutive samples. `cfspeedtest` can take a
+minute or more on slow connections; `SpeedTest__Cloudflare__TimeoutSeconds`
+(default 300) is the only limit on a run.
+
+#### Ookla
+
+Ookla's [EULA](https://www.speedtest.net/about/eula) allows personal,
+non-commercial use only and forbids redistributing the binary, so Wanetra's
+image does not include it. To use it:
+
+1. Download the Linux binary for your architecture from the
+   [Speedtest CLI page](https://www.speedtest.net/apps/cli).
+2. Mount it into the container, for example
+   `./speedtest:/usr/local/bin/speedtest:ro` under `volumes:` in your Compose file.
+3. Set `SpeedTest__Engine=ookla` and `SpeedTest__Ookla__AcceptLicense=true`.
+   The CLI will not run non-interactively until the EULA and GDPR notice are
+   accepted; setting this confirms that you did. Wanetra refuses to start with
+   `ookla` selected and the flag unset.
 
 ## Security
 
@@ -95,9 +136,10 @@ duplicate if it accepted a request but Wanetra stopped before recording success.
 Notification reads expose safe metadata only; secrets and webhook URLs are not
 returned. Blank fields preserve saved values, and edits keep the destination ID.
 
-LibreSpeed CLI does not report packet loss. The metric remains unavailable
-(Prometheus reports `NaN`); packet-loss conditions cannot trigger alerts, and
-the corresponding alert control is disabled in the UI.
+Packet loss depends on the engine. LibreSpeed and Cloudflare do not report it,
+so the metric stays unavailable for them (Prometheus reports `NaN`) and a
+packet-loss threshold never triggers. Ookla reports it when the CLI can
+measure it.
 
 History query parameters: `from` and `to` (ISO-8601, UTC), `success`, `engine`,
 `sort` (`asc` or `desc`, default `desc`), `page` (default 1), and `pageSize`
@@ -168,7 +210,7 @@ change the 365-day default.
 
 Pull requests run backend and frontend CI without publishing. On `main`, successful backend and frontend checks produce one multi-platform image, tagged `latest` and `sha-<full commit SHA>`. Main image publishing is serialized and rechecks the current commit before build, so an older build cannot publish over a newer queued build.
 
-For a named release, create and push a `vX.Y.Z` tag on a tested commit in `main`. The tag push automatically runs promotion and GitHub Release creation; `workflow_dispatch` is not configured. The workflow checks SemVer, ancestry, successful CI, version order, and both architectures. It promotes the existing SHA image to `X.Y.Z` and `X.Y` without rebuilding. Immutable version tags retry only when digest matches source. The mutable minor alias advances only for the newest release in that minor line, so retrying an older patch cannot roll it back. If GHCR promotion succeeds but Release creation fails, use **Re-run jobs** on the failed Actions run; same-digest promotion is idempotent. Draft or mismatched GitHub Releases fail closed. The image keeps build-time OCI labels, including its main-build version label; these are not rewritten during promotion. Release tags do not move `latest`.
+For a named release, create and push a `vX.Y.Z` tag on a tested commit in `main`. The tag push automatically runs promotion and GitHub Release creation; `workflow_dispatch` is not configured. The workflow checks SemVer, ancestry, successful CI, version order, and both architectures. It promotes the existing SHA image to `X.Y.Z` and `X.Y` without rebuilding. Immutable version tags retry only when digest matches source. The mutable minor alias advances only for the newest release in that minor line, so retrying an older patch cannot roll it back. If GHCR promotion succeeds but Release creation fails, use **Re-run jobs** on the failed Actions run; same-digest promotion is idempotent. Draft or mismatched GitHub Releases fail closed. The GitHub Release is marked **Latest** only when its tag is the highest SemVer release on `main`, so a backport to an older line never takes the badge. The image keeps build-time OCI labels, including its main-build version label; these are not rewritten during promotion. Release tags do not move the image's `latest` tag, which follows `main`.
 
 Example after successful CI on `main`:
 ```sh

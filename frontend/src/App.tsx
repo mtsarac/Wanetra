@@ -164,7 +164,7 @@ function App() {
         <Metric label="Upload" value={formatNumber(latest.data?.uploadMbps, 'Mbps')} tone="green" />
         <Metric label="Latency" value={formatNumber(latest.data?.latencyMs, 'ms')} tone="white" />
         <Metric label="Jitter" value={formatNumber(latest.data?.jitterMs, 'ms')} tone="violet" />
-        <Metric label="Packet loss (not reported by LibreSpeed)" value={formatNumber(latest.data?.packetLossPercent, '%')} tone="rose" />
+        <Metric label="Packet loss" value={formatNumber(latest.data?.packetLossPercent, '%')} tone="rose" />
         <div className="action-metric"><span>Last test · {formatTime(latest.data?.timestamp)}</span><Button disabled={status.data?.state === 'running' || run.isPending} onClick={() => run.mutate()}>{run.isPending || status.data?.state === 'running' ? 'Running…' : 'Run speed test'}</Button></div>
       </section>
       <section className="panel baseline">
@@ -190,7 +190,7 @@ function App() {
         </aside>
       </section>
       <section className="panel quality-panel">
-        <div className="panel-head"><div><p className="kicker">Connection quality</p><h2>Latency and jitter</h2></div><span className="muted">{history.data?.length ?? 0} measurements in selected range · packet loss unavailable with LibreSpeed</span></div>
+        <div className="panel-head"><div><p className="kicker">Connection quality</p><h2>Latency and jitter</h2></div><span className="muted">{history.data?.length ?? 0} measurements in selected range · packet loss only reported by some engines</span></div>
         {history.isLoading ? <div className="empty">Loading measurements…</div> : history.data?.length ? <QualityChart results={history.data} /> : <div className="empty">No measurements in selected range.</div>}
       </section>
       <section className="panel recent">

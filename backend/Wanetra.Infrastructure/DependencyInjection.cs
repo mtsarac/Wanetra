@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Wanetra.Application.Notifications;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Persistence;
@@ -13,6 +14,7 @@ namespace Wanetra.Infrastructure;
 public static class DependencyInjection
 {
     public const string DatabaseFileName = "wanetra.db";
+    public const string EngineSettingKey = "SpeedTest:Engine";
 
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
@@ -32,15 +34,44 @@ public static class DependencyInjection
         services.AddHttpClient<NtfyNotificationProvider>();
         services.AddHttpClient<WebhookNotificationProvider>();
 
-        services.AddOptions<LibreSpeedOptions>()
-            .Bind(configuration.GetSection(LibreSpeedOptions.SectionName))
-            .Validate(options => options.TimeoutSeconds > 0, "SpeedTest:LibreSpeed:TimeoutSeconds must be greater than zero.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.ExecutablePath), "SpeedTest:LibreSpeed:ExecutablePath must be set.")
-            .ValidateOnStart();
-
         services.AddSingleton<IProcessRunner, ProcessRunner>();
-        services.AddScoped<ISpeedTestEngine, LibreSpeedEngine>();
+
+        var engine = (configuration[EngineSettingKey] ?? "librespeed").Trim().ToLowerInvariant();
+        switch (engine)
+        {
+            case "librespeed":
+                AddCliOptions<LibreSpeedOptions>(services, configuration, LibreSpeedOptions.SectionName, o => o.ExecutablePath, o => o.TimeoutSeconds);
+                services.AddScoped<ISpeedTestEngine, LibreSpeedEngine>();
+                break;
+            case "cloudflare":
+                AddCliOptions<CloudflareOptions>(services, configuration, CloudflareOptions.SectionName, o => o.ExecutablePath, o => o.TimeoutSeconds);
+                services.AddScoped<ISpeedTestEngine, CloudflareSpeedEngine>();
+                break;
+            case "ookla":
+                AddCliOptions<OoklaOptions>(services, configuration, OoklaOptions.SectionName, o => o.ExecutablePath, o => o.TimeoutSeconds)
+                    .Validate(
+                        o => o.AcceptLicense,
+                        $"{OoklaOptions.SectionName}:AcceptLicense must be true to confirm you accepted the Ookla EULA and GDPR notice (https://www.speedtest.net/about/eula).");
+                services.AddScoped<ISpeedTestEngine, OoklaSpeedEngine>();
+                break;
+            default:
+                throw new InvalidOperationException(
+                    $"{EngineSettingKey} must be one of: librespeed, cloudflare, ookla (got '{engine}').");
+        }
 
         return services;
     }
+
+    private static OptionsBuilder<T> AddCliOptions<T>(
+        IServiceCollection services,
+        IConfiguration configuration,
+        string sectionName,
+        Func<T, string> executablePath,
+        Func<T, int> timeoutSeconds)
+        where T : class =>
+        services.AddOptions<T>()
+            .Bind(configuration.GetSection(sectionName))
+            .Validate(options => timeoutSeconds(options) > 0, $"{sectionName}:TimeoutSeconds must be greater than zero.")
+            .Validate(options => !string.IsNullOrWhiteSpace(executablePath(options)), $"{sectionName}:ExecutablePath must be set.")
+            .ValidateOnStart();
 }

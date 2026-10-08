@@ -55,7 +55,7 @@ const emptyRule: AlertRule = {
 }
 
 describe('alert settings', () => {
-  it('marks packet-loss alerts unavailable and blocks invalid consecutive counts', async () => {
+  it('lets packet-loss thresholds be set, explains engine support, and blocks invalid consecutive counts', async () => {
     vi.spyOn(api, 'getAlertRule').mockResolvedValue(emptyRule)
     vi.spyOn(api, 'getDegradationEvents').mockResolvedValue([])
     const save = vi.spyOn(api, 'saveAlertRule').mockResolvedValue(emptyRule)
@@ -63,8 +63,8 @@ describe('alert settings', () => {
     renderWithClient(<AlertSettings />)
 
     const packetLoss = await screen.findByLabelText(/Maximum packet loss/)
-    expect((packetLoss as HTMLInputElement).disabled).toBe(true)
-    expect(screen.getByText('Unavailable with LibreSpeed; this threshold is not applied.')).toBeTruthy()
+    expect((packetLoss as HTMLInputElement).disabled).toBe(false)
+    expect(screen.getByText('Only applied when the speed-test engine reports packet loss (Ookla).')).toBeTruthy()
 
     const failureCount = screen.getByLabelText('Consecutive unhealthy tests') as HTMLInputElement
     await user.clear(failureCount)
