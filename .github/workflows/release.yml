@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-promotion
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Validate release tag, commit, and CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          git fetch origin main --tags
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          test "$(git rev-parse "$GITHUB_REF^{commit}")" = "$GITHUB_SHA"
+          gh run list --commit "$GITHUB_SHA" --workflow ci.yml --limit 100 --json conclusion,event,headBranch,headSha,status | jq -e --arg sha "$GITHUB_SHA" '[.[] | select(.event == "push" and .headBranch == "main" and .headSha == $sha and .status == "completed")] | any(.conclusion == "success")'
+          latest="$(git tag --list 'v[0-9]*' --merged origin/main --sort=-version:refname | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | head -n 1 || true)"
+          release="$(gh release view "$GITHUB_REF_NAME" --json tagName,isDraft --jq '[.tagName, (.isDraft | tostring)] | @tsv' 2>/dev/null || true)"
+          if [[ -n "$release" && "$release" != "$GITHUB_REF_NAME"$'\tfalse' ]]; then
+            echo "Existing release is draft or mismatched; refusing to retry." >&2
+            exit 1
+          fi
+          if [[ -n "$latest" && "$GITHUB_REF_NAME" != "$latest" && "$release" != "$GITHUB_REF_NAME"$'\tfalse' ]]; then
+            [[ "$(printf '%s\n%s\n' "$latest" "$GITHUB_REF_NAME" | sort -V | tail -n 1)" == "$GITHUB_REF_NAME" ]]
+          fi
+      - uses: docker/setup-buildx-action@v4
+      - name: Verify image and promote tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          source="$image:sha-$GITHUB_SHA"
+          docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<< "$GH_TOKEN"
+          source_manifest="$(docker buildx imagetools inspect "$source" --format '{{json .Manifest}}')"
+          jq -e '[.manifests[] | select(.platform.os == "linux" and (.platform.architecture == "amd64" or .platform.architecture == "arm64")) | .platform.architecture] | unique | sort == ["amd64", "arm64"]' <<< "$source_manifest"
+          digest="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<< "$source_manifest")"
+          tag="${GITHUB_REF_NAME#v}"
+          minor="$(echo "$tag" | cut -d. -f1-2)"
+          newest_minor="$(git tag --list "v${minor}.*" --merged origin/main --sort=-version:refname | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | head -n 1 | sed 's/^v//' || true)"
+          existing="$(docker buildx imagetools inspect "$image:$tag" --format '{{json .Manifest}}' 2>/dev/null | jq -er '.digest' 2>/dev/null || true)"
+          if [[ -n "$existing" && "$existing" != "$digest" ]]; then
+            echo "Immutable version tag $tag points to $existing, expected $digest" >&2
+            exit 1
+          fi
+          if [[ "$existing" != "$digest" ]]; then
+            docker buildx imagetools create --tag "$image:$tag" "$image@$digest"
+          fi
+          actual="$(docker buildx imagetools inspect "$image:$tag" --format '{{json .Manifest}}' | jq -er '.digest')"
+          [[ "$actual" == "$digest" ]]
+          if [[ "$newest_minor" == "$tag" ]]; then
+            existing_minor="$(docker buildx imagetools inspect "$image:$minor" --format '{{json .Manifest}}' 2>/dev/null | jq -er '.digest' 2>/dev/null || true)"
+            if [[ "$existing_minor" != "$digest" ]]; then
+              docker buildx imagetools create --tag "$image:$minor" "$image@$digest"
+            fi
+            actual_minor="$(docker buildx imagetools inspect "$image:$minor" --format '{{json .Manifest}}' | jq -er '.digest')"
+            [[ "$actual_minor" == "$digest" ]]
+          else
+            echo "Skipping $minor promotion: $newest_minor is newer than $tag."
+          fi
+      - name: Create or verify GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release="$(gh release view "$GITHUB_REF_NAME" --json tagName,isDraft --jq '[.tagName, (.isDraft | tostring)] | @tsv' 2>/dev/null || true)"
+          if [[ "$release" == "$GITHUB_REF_NAME"$'\tfalse' ]]; then
+            echo "Release $GITHUB_REF_NAME already exists and is published; retry is complete."
+          elif [[ -n "$release" ]]; then
+            echo "Existing release is draft or does not match tag; refusing to overwrite." >&2
+            exit 1
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --latest=false
+          fi

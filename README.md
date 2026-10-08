@@ -166,19 +166,11 @@ change the 365-day default.
 
 ### Image publishing
 
-Pull requests run backend and frontend CI without publishing. After a PR is
-merged into `main`, those checks run again; only when both pass does CI publish
-`latest` and a commit-labelled `sha-<full commit SHA>` image to GHCR. Image tags
-can be replaced by a rebuild; pin a digest for strict image immutability. The
-branch publish job skips an older run if `main` has advanced. CodeQL and
-dependency review remain separate repository checks on pull requests.
+Pull requests run backend and frontend CI without publishing. On `main`, successful backend and frontend checks produce one multi-platform image, tagged `latest` and `sha-<full commit SHA>`. Main image publishing is serialized and rechecks the current commit before build, so an older build cannot publish over a newer queued build.
 
-For a named release, tag a tested commit on `main` with `vX.Y.Z` and push the
-tag. CI validates the tag and commit, reruns backend and frontend checks, then
-publishes `X.Y.Z` and `X.Y` for amd64 and arm64. Release tags do not update
-`latest`; only a passing `main` build does. For example, after merging to
-`main` and confirming its CI:
+For a named release, create and push a `vX.Y.Z` tag on a tested commit in `main`. The tag push automatically runs promotion and GitHub Release creation; `workflow_dispatch` is not configured. The workflow checks SemVer, ancestry, successful CI, version order, and both architectures. It promotes the existing SHA image to `X.Y.Z` and `X.Y` without rebuilding. Immutable version tags retry only when digest matches source. The mutable minor alias advances only for the newest release in that minor line, so retrying an older patch cannot roll it back. If GHCR promotion succeeds but Release creation fails, use **Re-run jobs** on the failed Actions run; same-digest promotion is idempotent. Draft or mismatched GitHub Releases fail closed. The image keeps build-time OCI labels, including its main-build version label; these are not rewritten during promotion. Release tags do not move `latest`.
 
+Example after successful CI on `main`:
 ```sh
 git switch main
 git pull --ff-only

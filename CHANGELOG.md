@@ -99,3 +99,5 @@ All notable changes to Wanetra will be documented here.
   run that failed instead of leaving both empty.
 - Container health check: the runtime image ships no `wget`, so the container
   never reported healthy.
+- CI runs for version tags no longer rebuild containers; releases promote the tested `main` commit image and verify its amd64/arm64 manifest.
+- Dependency review now blocks high-severity dependency changes, CodeQL uploads results, and Dependabot tracks the Bun lockfile.
