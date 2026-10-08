@@ -3,13 +3,13 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-[5px] border text-xs font-semibold transition-[background-color,transform] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111] disabled:pointer-events-none disabled:opacity-45 active:scale-[0.98]',
+  'inline-flex items-center justify-center rounded-[5px] border text-xs font-semibold transition-[background-color,transform] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:pointer-events-none disabled:opacity-45 active:scale-[0.98]',
   {
     variants: {
       variant: {
-        default: 'border-[#111] bg-[#111] text-white hover:bg-[#333]',
-        outline: 'border-[#dededb] bg-white text-[#2f3437] hover:bg-[#f7f6f3]',
-        ghost: 'border-transparent bg-transparent text-[#1f6c9f] hover:bg-[#e1f3fe]',
+        default: 'border-[var(--ink)] bg-[var(--ink)] text-[var(--canvas)] hover:bg-[var(--hover)]',
+        outline: 'border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-soft)]',
+        ghost: 'border-transparent bg-transparent text-[var(--blue)] hover:bg-[var(--blue-bg)]',
       },
       size: {
         default: 'h-10 px-4',

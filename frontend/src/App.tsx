@@ -30,18 +30,22 @@ function formatTime(value: string | null | undefined) {
 
 function Chart({ results }: { results: SpeedTestResult[] }) {
   const ref = useRef<HTMLDivElement>(null)
-  const option = useMemo<EChartsOption>(() => ({
-    animation: false,
-    tooltip: { trigger: 'axis' },
-    legend: { bottom: 0, textStyle: { color: '#787774', fontFamily: 'monospace' } },
-    grid: { left: 45, right: 20, top: 18, bottom: 42 },
-    xAxis: { type: 'time', axisLabel: { color: '#787774' }, axisLine: { lineStyle: { color: '#eaeaea' } } },
-    yAxis: { type: 'value', axisLabel: { color: '#787774' }, splitLine: { lineStyle: { color: '#eaeaea' } } },
-    series: [
-      { name: 'Download', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#1f6c9f' }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
-      { name: 'Upload', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#346538' }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
-    ],
-  }), [results])
+  const option = useMemo<EChartsOption>(() => {
+    const css = getComputedStyle(document.documentElement)
+    const color = (token: string) => css.getPropertyValue(token).trim()
+    return {
+      animation: false,
+      tooltip: { trigger: 'axis', backgroundColor: color('--surface'), borderColor: color('--line'), textStyle: { color: color('--text'), fontFamily: 'JetBrains Mono Variable, monospace' } },
+      legend: { bottom: 0, textStyle: { color: color('--muted'), fontFamily: 'JetBrains Mono Variable, monospace' } },
+      grid: { left: 45, right: 20, top: 18, bottom: 42 },
+      xAxis: { type: 'time', axisLabel: { color: color('--muted') }, axisLine: { lineStyle: { color: color('--line') } } },
+      yAxis: { type: 'value', axisLabel: { color: color('--muted') }, splitLine: { lineStyle: { color: color('--line') } } },
+      series: [
+        { name: 'Download', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: color('--blue') }, data: results.filter((r) => r.downloadMbps != null).map((r) => [r.timestamp, r.downloadMbps]) },
+        { name: 'Upload', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: color('--green') }, data: results.filter((r) => r.uploadMbps != null).map((r) => [r.timestamp, r.uploadMbps]) },
+      ],
+    }
+  }, [results])
 
   useEffect(() => {
     if (!ref.current) return
@@ -58,21 +62,21 @@ function Chart({ results }: { results: SpeedTestResult[] }) {
 function QualityChart({ results }: { results: SpeedTestResult[] }) {
   const ref = useRef<HTMLDivElement>(null)
   const option = useMemo<EChartsOption>(() => {
+    const css = getComputedStyle(document.documentElement)
     const chronological = results
     return {
-      animation: false,
-      tooltip: { trigger: 'axis' },
-      legend: { bottom: 0, textStyle: { color: '#787774', fontFamily: 'monospace' } },
+      tooltip: { trigger: 'axis', backgroundColor: css.getPropertyValue('--surface').trim(), borderColor: css.getPropertyValue('--line').trim(), textStyle: { color: css.getPropertyValue('--text').trim(), fontFamily: 'JetBrains Mono Variable, monospace' } },
+      legend: { bottom: 0, textStyle: { color: css.getPropertyValue('--muted').trim(), fontFamily: 'JetBrains Mono Variable, monospace' } },
       grid: { left: 48, right: 54, top: 18, bottom: 42 },
-      xAxis: { type: 'time', axisLabel: { color: '#787774' }, axisLine: { lineStyle: { color: '#eaeaea' } } },
+      xAxis: { type: 'time', axisLabel: { color: css.getPropertyValue('--muted').trim() }, axisLine: { lineStyle: { color: css.getPropertyValue('--line').trim() } } },
       yAxis: [
-        { type: 'value', name: 'ms', axisLabel: { color: '#787774' }, splitLine: { lineStyle: { color: '#eaeaea' } } },
-        { type: 'value', name: '%', position: 'right', axisLabel: { color: '#787774' }, splitLine: { show: false } },
+        { type: 'value', name: 'ms', axisLabel: { color: css.getPropertyValue('--muted').trim() }, splitLine: { lineStyle: { color: css.getPropertyValue('--line').trim() } } },
+        { type: 'value', name: '%', position: 'right', axisLabel: { color: css.getPropertyValue('--muted').trim() }, splitLine: { show: false } },
       ],
       series: [
-        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#956400' }, data: chronological.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
-        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: '#695b82' }, data: chronological.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
-        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, yAxisIndex: 1, itemStyle: { color: '#9f2f2d' }, data: chronological.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
+        { name: 'Latency', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: css.getPropertyValue('--yellow').trim() }, data: chronological.filter((r) => r.latencyMs != null).map((r) => [r.timestamp, r.latencyMs]) },
+        { name: 'Jitter', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, itemStyle: { color: css.getPropertyValue('--violet').trim() }, data: chronological.filter((r) => r.jitterMs != null).map((r) => [r.timestamp, r.jitterMs]) },
+        { name: 'Packet loss', type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2 }, yAxisIndex: 1, itemStyle: { color: css.getPropertyValue('--red').trim() }, data: chronological.filter((r) => r.packetLossPercent != null).map((r) => [r.timestamp, r.packetLossPercent]) },
       ],
     }
   }, [results])
