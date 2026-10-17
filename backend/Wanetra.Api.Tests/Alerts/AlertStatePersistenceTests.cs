@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Persistence;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Alerts;
 
 public class AlertStatePersistenceTests
 {

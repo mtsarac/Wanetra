@@ -2,7 +2,7 @@ using Wanetra.Application.Alerts;
 using Wanetra.Application.Baselines;
 using Wanetra.Domain;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Alerts;
 
 public class AlertConditionEvaluatorTests
 {

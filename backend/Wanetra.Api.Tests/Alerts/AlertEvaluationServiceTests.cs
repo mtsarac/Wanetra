@@ -4,7 +4,7 @@ using Wanetra.Application.Alerts;
 using Wanetra.Domain;
 using Wanetra.Infrastructure.Persistence;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Alerts;
 
 public class AlertEvaluationServiceTests
 {
