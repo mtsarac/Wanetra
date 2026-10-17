@@ -7,6 +7,7 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 ### Added
 
 - Wanetra is licensed under AGPL-3.0; the `LICENSE` file is now in the repository.
+- OpenAPI 3 description of the API at `GET /openapi/v1.json`.
 
 ### Changed
 

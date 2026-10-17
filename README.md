@@ -185,6 +185,8 @@ To report a vulnerability, follow [SECURITY.md](SECURITY.md).
 
 A test outlives the request that starts it, so poll `/api/speedtests/status` instead of waiting on the response.
 
+A machine-readable OpenAPI 3 description of the API is served at `/openapi/v1.json`.
+
 History accepts `from` and `to` (ISO 8601, UTC), `success`, `engine`, `sort` (`asc` or `desc`, default `desc`), `page` (default 1) and `pageSize` (default 50, maximum 200).
 
 The schedule is disabled by default and set to `*/30 * * * *` in `Europe/Istanbul`. Saving it takes effect immediately, with no restart. A run whose time has already passed is skipped and never caught up.
