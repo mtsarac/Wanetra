@@ -1,17 +1,17 @@
-FROM oven/bun:1 AS frontend
+FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:0d99ebf1ccad15037b5c98c9fe8979d6b8dbac23812feae2277a0b277b5c5ffa AS backend
 WORKDIR /src
 COPY backend/ ./backend/
 RUN dotnet restore backend/Wanetra.Api/Wanetra.Api.csproj
 RUN dotnet publish backend/Wanetra.Api/Wanetra.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:d5633778c754e89a386882eddf8dbee6942447a8a4b8267c19cf1e1158d0b0ac AS final
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     WANETRA_DATA_PATH=/data \
