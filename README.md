@@ -203,4 +203,4 @@ The backend is an ASP.NET Core minimal API with Entity Framework Core on SQLite.
 
 ## License
 
-License selection is still open. The bundled LibreSpeed CLI and cfspeedtest keep their own licenses, which are copied to `/usr/share/licenses/` in the image.
+Wanetra is licensed under the [GNU Affero General Public License v3.0](LICENSE). The bundled LibreSpeed CLI and cfspeedtest keep their own licenses, which are copied to `/usr/share/licenses/` in the image.

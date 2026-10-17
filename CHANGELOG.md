@@ -5,6 +5,8 @@ All notable changes to Wanetra will be documented here.
 ## Unreleased
 
 ### Added
+- Wanetra is licensed under AGPL-3.0; the `LICENSE` file is now in the repository.
+
 - Runtime settings system with `GET`/`PUT /api/settings`: change speed-test engine,
   timeout, server ID, and retention days via UI or API without container restart.
   Supports precedence env > stored > default; non-empty env variables lock fields in the UI.
