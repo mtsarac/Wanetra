@@ -31,7 +31,7 @@ The dashboard is at `http://127.0.0.1:8080` on the Docker host. The scheduler is
 
 The Compose file pulls `ghcr.io/mtsarac/wanetra:latest` (linux/amd64 and linux/arm64) and keeps data in a Docker-managed volume named `wanetra-data`, mounted at `/data`. No `.env` file or host directory is needed.
 
-To build the image from source instead, run `docker compose -f compose.example.yml up -d --build`.
+To build the image from source instead, run `docker compose -f compose.example.yaml up -d --build`.
 
 ### Updating and pinning versions
 
@@ -68,7 +68,7 @@ Common configuration variables:
 | `WANETRA_DATA_PATH` | `/data` | Directory for the database and downloaded tools |
 | `WANETRA_PORT` | `8080` | Host port published by the Compose files |
 | `WANETRA_BIND_ADDRESS` | `127.0.0.1` | Host interface published by the Compose files |
-| `WANETRA_VERSION` | `latest` | Image tag used by `docker-compose.yaml` |
+| `WANETRA_VERSION` | `latest` | Image tag used by `compose.yaml` |
 | `DataRetention__Days` | `365` | Days of speed-test history to keep |
 | `SpeedTest__Engine` | `librespeed` | Active engine: `librespeed`, `cloudflare`, or `ookla` |
 | `SpeedTest__Ookla__AcceptLicense` | `false` | Required for `ookla`. Read [Ookla and its license](#ookla-and-its-license) first |

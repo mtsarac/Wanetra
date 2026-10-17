@@ -8,6 +8,10 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 - Wanetra is licensed under AGPL-3.0; the `LICENSE` file is now in the repository.
 
+### Changed
+
+- Renamed `docker-compose.yaml` to `compose.yaml` and `compose.example.yml` to `compose.example.yaml`. Use `docker compose -f compose.example.yaml up -d --build` to build from source.
+
 ## [0.3.0] - 2026-10-08
 
 Includes everything since the initial repository bootstrap; earlier pre-release tags and releases were removed.
