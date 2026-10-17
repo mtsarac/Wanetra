@@ -73,6 +73,8 @@ Common configuration variables:
 | `SpeedTest__Engine` | `librespeed` | Active engine: `librespeed`, `cloudflare`, or `ookla` |
 | `SpeedTest__Ookla__AcceptLicense` | `false` | Required for `ookla`. Read [Ookla and its license](#ookla-and-its-license) first |
 | `SpeedTest__Ookla__ExecutablePath` | empty | Optional fallback binary for `ookla` |
+| `SpeedTest__Cloudflare__TimeoutSeconds` | `300` | Run time limit for `cloudflare`, in seconds |
+| `SpeedTest__Cloudflare__ExecutablePath` | `cfspeedtest` | Binary used by `cloudflare` |
 | `TZ` | `Europe/Istanbul` | Container timezone |
 
 Cleanup of old results runs at startup and then every 24 hours. A result exactly at the cutoff is kept; only older ones are deleted.
@@ -156,6 +158,9 @@ The Compose files bind to `127.0.0.1` by default so that only the Docker host ca
 Executable paths cannot be modified through the API or web UI for this reason. They must be set through environment variables.
 
 The SQLite database in `/data` stores notification settings as plain JSON, including ntfy tokens and passwords and webhook headers. Limit who can read the volume, and treat its backups as secrets.
+
+To report a vulnerability, follow [SECURITY.md](SECURITY.md).
+
 ## API
 
 | Method | Path | Purpose |
