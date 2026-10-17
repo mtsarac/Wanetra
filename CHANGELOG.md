@@ -1,11 +1,18 @@
 # Changelog
 
-All notable changes to Wanetra will be documented here.
+All notable changes to Wanetra will be documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## [Unreleased]
 
 ### Added
+
 - Wanetra is licensed under AGPL-3.0; the `LICENSE` file is now in the repository.
+
+## [0.3.0] - 2026-10-08
+
+Includes everything since the initial repository bootstrap; earlier pre-release tags and releases were removed.
+
+### Added
 
 - Runtime settings system with `GET`/`PUT /api/settings`: change speed-test engine,
   timeout, server ID, and retention days via UI or API without container restart.
@@ -119,3 +126,6 @@ All notable changes to Wanetra will be documented here.
 - CI runs for version tags no longer rebuild containers; releases promote the tested `main` commit image and verify its amd64/arm64 manifest.
 - Dependency review now blocks high-severity dependency changes, CodeQL uploads results, and Dependabot tracks the Bun lockfile.
 - GitHub Releases are marked Latest when their tag is the highest SemVer release on `main`; backports to older lines are not.
+
+[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/mtsarac/Wanetra/releases/tag/v0.3.0
