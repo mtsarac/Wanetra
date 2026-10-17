@@ -1,5 +1,9 @@
 # Wanetra
 
+[![CI](https://github.com/mtsarac/Wanetra/actions/workflows/ci.yml/badge.svg)](https://github.com/mtsarac/Wanetra/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mtsarac/Wanetra)](https://github.com/mtsarac/Wanetra/releases/latest)
+[![License](https://img.shields.io/github/license/mtsarac/Wanetra)](LICENSE)
+
 Wanetra is a self-hosted monitor for your internet connection. It runs speed tests on a schedule, keeps the history in SQLite, shows it in a web dashboard, and tells you through ntfy or a webhook when your connection degrades and when it recovers. It also exposes Prometheus metrics. It runs as a single Docker container.
 
 It is pre-1.0. The API and the database schema can still change between releases, so back up the data volume before upgrading.
