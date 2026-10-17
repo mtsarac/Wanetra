@@ -1,0 +1,38 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Wanetra version
+      description: Image tag or commit SHA, for example `0.3.0` or `latest`.
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Speed-test engine
+      options: [librespeed, cloudflare, ookla, not related]
+    validations:
+      required: true
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Docker host architecture
+      options: [linux/amd64, linux/arm64, other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include steps to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Output of `docker compose logs wanetra`. Remove tokens and webhook URLs first.
+      render: text
