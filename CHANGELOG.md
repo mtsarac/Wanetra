@@ -12,6 +12,11 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 ### Changed
 
 - Renamed `docker-compose.yaml` to `compose.yaml` and `compose.example.yml` to `compose.example.yaml`. Use `docker compose -f compose.example.yaml up -d --build` to build from source.
+- `/metrics` always answers in the Prometheus text format; OpenMetrics content negotiation is no longer offered. The exposed metric names are unchanged.
+
+### Fixed
+
+- Wanetra gauges live in a per-instance Prometheus registry instead of static fields, which removes a flaky test that read gauges another test host had overwritten.
 
 ## [0.3.0] - 2026-10-08
 

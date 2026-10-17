@@ -15,7 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 var dataPath = Path.GetFullPath(
     builder.Configuration["WANETRA_DATA_PATH"] ?? "/data",
     builder.Environment.ContentRootPath);
-builder.Services.AddSingleton<IPrometheusMetrics, WanetraMetrics>();
+builder.Services.AddSingleton<WanetraMetrics>();
+builder.Services.AddSingleton<IPrometheusMetrics>(services => services.GetRequiredService<WanetraMetrics>());
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration, dataPath);
 
@@ -71,7 +72,7 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => fa
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 app.MapOpenApi();
 app.MapSettingsEndpoints();
-app.MapMetrics("/metrics");
+app.MapWanetraMetrics("/metrics", app.Services.GetRequiredService<WanetraMetrics>().Registry);
 app.MapSpeedTestEndpoints();
 app.MapScheduleEndpoints();
 app.MapBaselineEndpoints();
