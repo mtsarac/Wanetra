@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wanetra.Api.Contracts;
 using Wanetra.Application.Scheduling;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Scheduling;
 
 public class ScheduleApiTests
 {

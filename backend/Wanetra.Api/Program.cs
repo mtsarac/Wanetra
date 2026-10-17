@@ -21,6 +21,7 @@ builder.Services.AddInfrastructure(builder.Configuration, dataPath);
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<WanetraDbContext>("database", tags: ["ready"]);
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -68,6 +69,7 @@ app.UseStaticFiles();
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
+app.MapOpenApi();
 app.MapSettingsEndpoints();
 app.MapMetrics("/metrics");
 app.MapSpeedTestEndpoints();

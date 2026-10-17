@@ -1,7 +1,8 @@
+using Wanetra.Api.Tests.SpeedTests;
 using Wanetra.Application.Baselines;
 using Wanetra.Domain;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Baselines;
 
 public class BaselineServiceTests
 {

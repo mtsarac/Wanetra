@@ -3,11 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Wanetra.Application;
+using Wanetra.Api.Tests.SpeedTests;
 using Wanetra.Application.Scheduling;
 using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Scheduling;
 
 public class ScheduleWorkerTests
 {

@@ -1,7 +1,7 @@
 using Wanetra.Application.Scheduling;
 using Wanetra.Domain;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Scheduling;
 
 public class ScheduleCalculatorTests
 {

@@ -31,7 +31,7 @@ The dashboard is at `http://127.0.0.1:8080` on the Docker host. The scheduler is
 
 The Compose file pulls `ghcr.io/mtsarac/wanetra:latest` (linux/amd64 and linux/arm64) and keeps data in a Docker-managed volume named `wanetra-data`, mounted at `/data`. No `.env` file or host directory is needed.
 
-To build the image from source instead, run `docker compose -f compose.example.yml up -d --build`.
+To build the image from source instead, run `docker compose -f compose.example.yaml up -d --build`.
 
 ### Updating and pinning versions
 
@@ -68,11 +68,13 @@ Common configuration variables:
 | `WANETRA_DATA_PATH` | `/data` | Directory for the database and downloaded tools |
 | `WANETRA_PORT` | `8080` | Host port published by the Compose files |
 | `WANETRA_BIND_ADDRESS` | `127.0.0.1` | Host interface published by the Compose files |
-| `WANETRA_VERSION` | `latest` | Image tag used by `docker-compose.yaml` |
+| `WANETRA_VERSION` | `latest` | Image tag used by `compose.yaml` |
 | `DataRetention__Days` | `365` | Days of speed-test history to keep |
 | `SpeedTest__Engine` | `librespeed` | Active engine: `librespeed`, `cloudflare`, or `ookla` |
 | `SpeedTest__Ookla__AcceptLicense` | `false` | Required for `ookla`. Read [Ookla and its license](#ookla-and-its-license) first |
 | `SpeedTest__Ookla__ExecutablePath` | empty | Optional fallback binary for `ookla` |
+| `SpeedTest__Cloudflare__TimeoutSeconds` | `300` | Run time limit for `cloudflare`, in seconds |
+| `SpeedTest__Cloudflare__ExecutablePath` | `cfspeedtest` | Binary used by `cloudflare` |
 | `TZ` | `Europe/Istanbul` | Container timezone |
 
 Cleanup of old results runs at startup and then every 24 hours. A result exactly at the cutoff is kept; only older ones are deleted.
@@ -156,6 +158,9 @@ The Compose files bind to `127.0.0.1` by default so that only the Docker host ca
 Executable paths cannot be modified through the API or web UI for this reason. They must be set through environment variables.
 
 The SQLite database in `/data` stores notification settings as plain JSON, including ntfy tokens and passwords and webhook headers. Limit who can read the volume, and treat its backups as secrets.
+
+To report a vulnerability, follow [SECURITY.md](SECURITY.md).
+
 ## API
 
 | Method | Path | Purpose |
@@ -179,6 +184,8 @@ The SQLite database in `/data` stores notification settings as plain JSON, inclu
 | `GET` | `/health`, `/health/live`, `/health/ready` | Health checks. |
 
 A test outlives the request that starts it, so poll `/api/speedtests/status` instead of waiting on the response.
+
+A machine-readable OpenAPI 3 description of the API is served at `/openapi/v1.json`.
 
 History accepts `from` and `to` (ISO 8601, UTC), `success`, `engine`, `sort` (`asc` or `desc`, default `desc`), `page` (default 1) and `pageSize` (default 50, maximum 200).
 

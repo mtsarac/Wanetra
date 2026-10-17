@@ -1,3 +1,4 @@
+using Wanetra.Api.Tests.SpeedTests;
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
@@ -7,7 +8,7 @@ using Wanetra.Domain;
 using Wanetra.Application.Baselines;
 using Wanetra.Infrastructure.Persistence;
 
-namespace Wanetra.Api.Tests.SpeedTests;
+namespace Wanetra.Api.Tests.Baselines;
 
 public class BaselineApiTests
 {

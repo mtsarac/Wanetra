@@ -7,6 +7,11 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 ### Added
 
 - Wanetra is licensed under AGPL-3.0; the `LICENSE` file is now in the repository.
+- OpenAPI 3 description of the API at `GET /openapi/v1.json`.
+
+### Changed
+
+- Renamed `docker-compose.yaml` to `compose.yaml` and `compose.example.yml` to `compose.example.yaml`. Use `docker compose -f compose.example.yaml up -d --build` to build from source.
 
 ## [0.3.0] - 2026-10-08
 

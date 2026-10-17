@@ -13,9 +13,11 @@ RUN dotnet publish backend/Wanetra.Api/Wanetra.Api.csproj -c Release -o /app/pub
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:d5633778c754e89a386882eddf8dbee6942447a8a4b8267c19cf1e1158d0b0ac AS final
 WORKDIR /app
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV ASPNETCORE_URLS=http://+:8080 \
     WANETRA_DATA_PATH=/data \
     WANETRA_PORT=8080
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
@@ -61,9 +63,10 @@ RUN set -eu; \
     rm -rf /tmp/cfspeedtest /tmp/cfspeedtest.tar.gz /tmp/cfspeedtest-LICENSE
 COPY --from=backend /app/publish ./
 COPY --from=frontend /src/frontend/dist ./wwwroot
-RUN mkdir /data && chown -R $APP_UID:$APP_UID /app /data
+RUN mkdir /data && chown -R "$APP_UID:$APP_UID" /app /data
 USER $APP_UID
 EXPOSE 8080
 VOLUME ["/data"]
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD curl -fsS http://127.0.0.1:8080/health/ready || exit 1
 ENTRYPOINT ["dotnet", "Wanetra.Api.dll"]
