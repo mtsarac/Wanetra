@@ -20,7 +20,7 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Validate release tag, commit, and CI
@@ -42,7 +42,7 @@ jobs:
           if [[ -n "$latest" && "$GITHUB_REF_NAME" != "$latest" && "$release" != "$GITHUB_REF_NAME"$'\tfalse' ]]; then
             [[ "$(printf '%s\n%s\n' "$latest" "$GITHUB_REF_NAME" | sort -V | tail -n 1)" == "$GITHUB_REF_NAME" ]]
           fi
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - name: Verify image and promote tags
         env:
           GH_TOKEN: ${{ github.token }}
