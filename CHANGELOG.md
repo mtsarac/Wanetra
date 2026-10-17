@@ -4,6 +4,8 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-18
+
 ### Added
 
 - Wanetra is licensed under AGPL-3.0; the `LICENSE` file is now in the repository.
@@ -137,5 +139,6 @@ Includes everything since the initial repository bootstrap; earlier pre-release 
 - Dependency review now blocks high-severity dependency changes, CodeQL uploads results, and Dependabot tracks the Bun lockfile.
 - GitHub Releases are marked Latest when their tag is the highest SemVer release on `main`; backports to older lines are not.
 
-[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/mtsarac/Wanetra/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/mtsarac/Wanetra/releases/tag/v0.3.0
