@@ -172,32 +172,88 @@ export type NotificationConfigurationList = {
 }
 export type NotificationTestTarget = { id: number } | { provider: string; configurationJson: string }
 
-type ApiError = { message?: string }
+type ApiError = { code?: string; message?: string }
+
+export const UNAUTHORIZED_EVENT = 'wanetra:unauthorized'
+const CSRF_HEADER = 'X-Wanetra-Request'
+
+export class ApiRequestError extends Error {
+  readonly status: number
+  readonly code: string | null
+
+  constructor(message: string, status: number, code: string | null) {
+    super(message)
+    this.name = 'ApiRequestError'
+    this.status = status
+    this.code = code
+  }
+}
+
+export type AuthStatus = {
+  authEnabled: boolean
+  envLocked: boolean
+  setupRequired: boolean
+  accountExists: boolean
+  authenticated: boolean
+  username: string | null
+  metricsTokenConfigured: boolean
+}
+
+async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  const method = init?.method?.toUpperCase() ?? 'GET'
+  const headers = new Headers(init?.headers)
+  if (method !== 'GET' && method !== 'HEAD') headers.set(CSRF_HEADER, '1')
+
+  const response = await fetch(url, { ...init, headers })
+  if (response.status === 401 && !url.startsWith('/api/auth/')) {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+  }
+  return response
+}
+
+async function failure(response: Response): Promise<ApiRequestError> {
+  const body = await response.json().catch(() => null) as ApiError | null
+  return new ApiRequestError(body?.message ?? `Request failed (${response.status})`, response.status, body?.code ?? null)
+}
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init)
+  const response = await apiFetch(url, init)
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as ApiError | null
-    throw new Error(body?.message ?? `Request failed (${response.status})`)
-  }
+  if (!response.ok) throw await failure(response)
 
   if (response.status === 204) return undefined as T
   const body = await response.text()
   return body.trim() === '' ? undefined as T : JSON.parse(body) as T
 }
 
+function postJson<T>(url: string, body?: unknown): Promise<T> {
+  return request<T>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
 async function getLatest(): Promise<SpeedTestResult | null> {
-  const response = await fetch('/api/speedtests/latest')
+  const response = await apiFetch('/api/speedtests/latest')
   if (response.status === 404) return null
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as ApiError | null
-    throw new Error(body?.message ?? `Request failed (${response.status})`)
-  }
+  if (!response.ok) throw await failure(response)
   return response.json() as Promise<SpeedTestResult>
 }
 
 export const api = {
+  getAuthStatus: () => request<AuthStatus>('/api/auth/status'),
+  setupAuth: (setupCode: string, username: string, password: string) =>
+    postJson<AuthStatus>('/api/auth/setup', { setupCode, username, password }),
+  login: (username: string, password: string) =>
+    postJson<AuthStatus>('/api/auth/login', { username, password }),
+  logout: () => postJson<void>('/api/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    postJson<void>('/api/auth/change-password', { currentPassword, newPassword }),
+  disableAuth: (password: string) => postJson<void>('/api/auth/disable', { password }),
+  enableAuth: () => postJson<void>('/api/auth/enable'),
+  createMetricsToken: () => postJson<{ token: string }>('/api/auth/metrics-token'),
+  revokeMetricsToken: () => request<void>('/api/auth/metrics-token', { method: 'DELETE' }),
   getLatest,
   getStatus: () => request<SpeedTestStatus>('/api/speedtests/status'),
   getSchedule: () => request<Schedule>('/api/schedule'),
@@ -216,9 +272,9 @@ export const api = {
       body: JSON.stringify({ values }),
     }),
   getAlertRule: async () => {
-    const response = await fetch('/api/alerts/rule')
+    const response = await apiFetch('/api/alerts/rule')
     if (response.status === 404) return null
-    if (!response.ok) throw new Error(`Request failed (${response.status})`)
+    if (!response.ok) throw await failure(response)
     return response.json() as Promise<AlertRule>
   },
   saveAlertRule: (rule: AlertRuleUpdate) =>
@@ -228,9 +284,9 @@ export const api = {
       body: JSON.stringify(rule),
     }),
   getActiveAlert: async () => {
-    const response = await fetch('/api/alerts/active')
+    const response = await apiFetch('/api/alerts/active')
     if (response.status === 404) return null
-    if (!response.ok) throw new Error(`Request failed (${response.status})`)
+    if (!response.ok) throw await failure(response)
     return response.json() as Promise<ActiveAlert>
   },
   getDegradationEvents: (count = 20) => request<DegradationEvent[]>(`/api/alerts/events?count=${count}`),

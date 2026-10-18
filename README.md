@@ -15,6 +15,7 @@ It is pre-1.0. The API and the database schema can still change between releases
 - History with filtering and paging, plus a seven-day rolling baseline
 - Degradation alerts (thresholds and drops against the baseline) with recovery notices, sent through ntfy or a generic webhook
 - Prometheus metrics at `/metrics`
+- Sign-in with a single account, created on first start; it can be turned off again
 - Automatic cleanup of old results (365 days by default)
 
 ## Quick start
@@ -27,7 +28,7 @@ cd Wanetra
 docker compose up -d
 ```
 
-The dashboard is at `http://127.0.0.1:8080` on the Docker host. The scheduler is off by default, so press **Run speed test** or enable a schedule under Settings.
+The dashboard is at `http://127.0.0.1:8080` on the Docker host. On the first visit Wanetra asks you to create an account. It prints a one-time setup code in its log when it starts (`docker compose logs wanetra`); enter that code with the username and password you want. The scheduler is off by default, so press **Run speed test** or enable a schedule under Settings.
 
 The Compose file pulls `ghcr.io/mtsarac/wanetra:latest` (linux/amd64 and linux/arm64) and keeps data in a Docker-managed volume named `wanetra-data`, mounted at `/data`. No `.env` file or host directory is needed.
 
@@ -75,6 +76,7 @@ Common configuration variables:
 | `SpeedTest__Ookla__ExecutablePath` | empty | Optional fallback binary for `ookla` |
 | `SpeedTest__Cloudflare__TimeoutSeconds` | `300` | Run time limit for `cloudflare`, in seconds |
 | `SpeedTest__Cloudflare__ExecutablePath` | `cfspeedtest` | Binary used by `cloudflare` |
+| `WANETRA_AUTH` | empty | `disabled` turns sign-in off, `enabled` forces it on. Empty lets the Settings page decide. See [Security](#security) |
 | `TZ` | `Europe/Istanbul` | Container timezone |
 
 Cleanup of old results runs at startup and then every 24 hours. A result exactly at the cutoff is kept; only older ones are deleted.
@@ -151,11 +153,22 @@ Reading the notification settings never returns secrets or webhook URLs. When yo
 
 ## Security
 
-Wanetra has no login and no user accounts. Anyone who can reach the web UI or API can modify application settings, change the speed-test engine, and accept the Ookla license. Keep Wanetra bound to loopback or place it behind an authenticating reverse proxy before exposing it to other users or networks.
+Wanetra has a single account. The first time you open the UI it asks you to create it, and proves you are the owner with a one-time setup code that it writes to its log when it starts. Until the account exists, every `/api` route answers `401`, so nobody who reaches the port first can claim the instance without log access. If you restart before finishing setup, a new code is printed.
 
-The Compose files bind to `127.0.0.1` by default so that only the Docker host can reach it. To use it from your LAN, set `WANETRA_BIND_ADDRESS` to the host's LAN address (or to `0.0.0.0` for every interface) and restrict access with the host firewall. Do not expose it to the public internet without authentication.
+After that:
 
-Executable paths cannot be modified through the API or web UI for this reason. They must be set through environment variables.
+- The browser gets an `HttpOnly`, `SameSite=Strict` session cookie that lasts 30 days. Passwords are stored as PBKDF2-SHA-256 hashes. Only a hash of each session token is stored.
+- Five failed sign-ins from one address in 15 minutes lock that address out for the rest of the window (`429` with `Retry-After`).
+- State-changing API calls made with the cookie must carry an `X-Wanetra-Request` header. The web UI sends it. Scripts that reuse a session cookie have to send it too.
+- `/health`, `/health/live` and `/health/ready` stay open so the Docker health check keeps working.
+- `/metrics` needs either a session or a bearer token. Generate the token under **Settings → Security**; it is shown once, and generating a new one replaces the old one. Point Prometheus at it with `authorization: { credentials: <token> }`. After upgrading from a version without authentication, Prometheus gets `401` until you add the token.
+- The cookie only carries the `Secure` flag when the request arrived over HTTPS. Behind a TLS-terminating reverse proxy, set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` so Wanetra sees the original scheme.
+
+You can turn authentication off under **Settings → Security**, after confirming your password, and turn it on again later. If you lose the password, start the container with `WANETRA_AUTH=disabled`, then set a new password under Settings or turn authentication back on. While `WANETRA_AUTH` is set, Settings cannot change authentication, the same way other environment variables lock their settings. `WANETRA_AUTH=enabled` pins it on.
+
+Authentication is not a substitute for network isolation: the connection is plain HTTP unless you add a reverse proxy with TLS. The Compose files bind to `127.0.0.1` by default so that only the Docker host can reach it. To use it from your LAN, set `WANETRA_BIND_ADDRESS` to the host's LAN address (or to `0.0.0.0` for every interface) and put TLS in front of it if the network is not trusted. Do not expose it to the public internet without a reverse proxy.
+
+Executable paths cannot be modified through the API or web UI. They must be set through environment variables.
 
 The SQLite database in `/data` stores notification settings as plain JSON, including ntfy tokens and passwords and webhook headers. Limit who can read the volume, and treat its backups as secrets.
 
@@ -180,8 +193,16 @@ To report a vulnerability, follow [SECURITY.md](SECURITY.md).
 | `GET`, `PUT` | `/api/notifications` | Read or save the ntfy and webhook configuration. |
 | `POST` | `/api/notifications/test` | Send a test notification to a saved or draft destination. |
 | `GET`, `PUT` | `/api/settings` | Read all settings or atomically update values. |
-| `GET` | `/metrics` | Prometheus scrape endpoint. |
+| `GET` | `/api/auth/status` | Whether sign-in is on, whether setup is needed and whether this session is signed in. Open to everyone. |
+| `POST` | `/api/auth/setup` | Create the account with `{setupCode, username, password}`. Only while no account exists. |
+| `POST` | `/api/auth/login`, `/api/auth/logout` | Start or end a session. |
+| `POST` | `/api/auth/change-password` | Save `{currentPassword, newPassword}` and sign out other sessions. |
+| `POST` | `/api/auth/disable`, `/api/auth/enable` | Turn sign-in off (needs `{password}`) or on. `409` while `WANETRA_AUTH` is set. |
+| `POST`, `DELETE` | `/api/auth/metrics-token` | Create (and return once) or revoke the `/metrics` bearer token. |
+| `GET` | `/metrics` | Prometheus scrape endpoint. Needs a session or the bearer token. |
 | `GET` | `/health`, `/health/live`, `/health/ready` | Health checks. |
+
+With authentication on, every `/api` route except `/api/auth/status`, `/api/auth/setup`, `/api/auth/login` and `/api/auth/logout` needs a session.
 
 A test outlives the request that starts it, so poll `/api/speedtests/status` instead of waiting on the response.
 

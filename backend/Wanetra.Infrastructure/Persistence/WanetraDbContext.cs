@@ -14,6 +14,8 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
     public DbSet<NotificationConfiguration> NotificationConfigurations => Set<NotificationConfiguration>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -83,6 +85,20 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
             entity.HasKey(x => x.Key);
             entity.Property(x => x.Key).HasMaxLength(128);
             entity.Property(x => x.Value).HasMaxLength(1024);
+        });
+
+        modelBuilder.Entity<AuthAccount>(entity =>
+        {
+            entity.Property(x => x.Username).HasMaxLength(64);
+            entity.Property(x => x.PasswordHash).HasMaxLength(256);
+            entity.Property(x => x.MetricsTokenHash).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<AuthSession>(entity =>
+        {
+            entity.Property(x => x.TokenHash).HasMaxLength(64);
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => x.ExpiresAt);
         });
     }
 

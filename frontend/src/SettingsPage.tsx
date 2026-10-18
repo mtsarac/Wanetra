@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { SecuritySection } from './auth/SecuritySection'
 import { api } from './lib/api'
 import ScheduleSettings from './ScheduleSettings'
 import { AppearanceSection } from './settings/AppearanceSection'
@@ -47,6 +48,8 @@ export default function SettingsPage() {
       {!settingsQuery.data?.settings && !settingsQuery.isLoading && (
         <ScheduleSettings />
       )}
+
+      <SecuritySection />
 
       <AppearanceSection />
     </main>

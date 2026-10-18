@@ -8,6 +8,7 @@ services:
     environment:
       TZ: ${TZ:-Europe/Istanbul}
       WANETRA_DATA_PATH: ${WANETRA_DATA_PATH:-/data}
+      WANETRA_AUTH: ${WANETRA_AUTH:-}
       DataRetention__Days: ${DataRetention__Days:-}
       SpeedTest__Engine: ${SpeedTest__Engine:-}
       SpeedTest__Ookla__AcceptLicense: ${SpeedTest__Ookla__AcceptLicense:-}

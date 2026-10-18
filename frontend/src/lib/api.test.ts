@@ -139,7 +139,7 @@ describe('settings API calls', () => {
     const result = await api.getSettings()
 
     expect(result).toEqual(sampleResponse)
-    expect(fetchMock).toHaveBeenCalledWith('/api/settings', undefined)
+    expect(fetchMock).toHaveBeenCalledWith('/api/settings', expect.anything())
   })
 
   it('sends PUT to /api/settings with values body wrapped', async () => {
@@ -154,11 +154,13 @@ describe('settings API calls', () => {
     const result = await api.updateSettings(payload)
 
     expect(result).toEqual(sampleResponse)
-    expect(fetchMock).toHaveBeenCalledWith('/api/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: payload }),
-    })
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const headers = new Headers(init.headers)
+    expect(url).toBe('/api/settings')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify({ values: payload }))
+    expect(headers.get('Content-Type')).toBe('application/json')
+    expect(headers.get('X-Wanetra-Request')).toBe('1')
   })
 
   it('surfaces backend 400 invalid_setting error message', async () => {
