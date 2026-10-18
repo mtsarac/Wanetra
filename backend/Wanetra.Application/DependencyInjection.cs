@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Wanetra.Application.Alerts;
+using Wanetra.Application.Auth;
 using Wanetra.Application.Baselines;
 using Wanetra.Application.Notifications;
 using Wanetra.Application.Scheduling;
@@ -18,6 +19,9 @@ public static class DependencyInjection
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IPrometheusMetrics, NoopPrometheusMetrics>();
         services.AddSingleton<SettingsSnapshot>();
+        services.AddSingleton<SetupCodeProvider>();
+        services.AddSingleton<LoginThrottle>();
+        services.AddScoped<AuthService>();
         services.AddScoped<SettingsService>();
         services.AddScoped<SpeedTestExecutor>();
         services.AddScoped<BaselineService>();

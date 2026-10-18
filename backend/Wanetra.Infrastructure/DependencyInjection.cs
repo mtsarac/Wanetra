@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IAlertStateRepository, AlertStateRepository>();
         services.AddScoped<INotificationConfigurationRepository, NotificationConfigurationRepository>();
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
+        services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddHttpClient<NtfyNotificationProvider>();
         services.AddHttpClient<WebhookNotificationProvider>();
 

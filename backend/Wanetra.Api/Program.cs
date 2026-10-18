@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Wanetra.Application.Alerts;
+using Wanetra.Application.Auth;
+using Wanetra.Api.Auth;
 using Wanetra.Api.Endpoints;
 using Prometheus;
 using Wanetra.Api.Prometheus;
@@ -35,6 +37,10 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 await using (var scope = app.Services.CreateAsyncScope())
 {
+    await scope.ServiceProvider.GetRequiredService<AuthService>().InitializeAsync(CancellationToken.None);
+}
+await using (var scope = app.Services.CreateAsyncScope())
+{
     var results = scope.ServiceProvider.GetRequiredService<ISpeedTestResultRepository>();
     var alerts = scope.ServiceProvider.GetRequiredService<IAlertStateRepository>();
     if (await alerts.GetRuleAsync(CancellationToken.None) is null)
@@ -66,11 +72,13 @@ await using (var scope = app.Services.CreateAsyncScope())
 app.UseHttpMetrics();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseMiddleware<AuthMiddleware>();
 
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 app.MapOpenApi();
+app.MapAuthEndpoints();
 app.MapSettingsEndpoints();
 app.MapWanetraMetrics("/metrics", app.Services.GetRequiredService<WanetraMetrics>().Registry);
 app.MapSpeedTestEndpoints();

@@ -1,0 +1,46 @@
+.auth-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5) var(--space-4);
+  background: var(--canvas);
+}
+.auth-panel { width: min(100%, 26rem); }
+.auth-panel h1 { margin-top: var(--space-2); }
+.auth-intro { margin-top: var(--space-3); line-height: 1.6; font-size: var(--fs-sm); }
+.auth-form { display: grid; gap: var(--space-4); margin-top: var(--space-5); }
+.auth-form label { display: grid; gap: var(--space-2); }
+.auth-link {
+  background: none;
+  border: 0;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font: inherit;
+}
+.signout-btn {
+  min-height: var(--target-min);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 var(--space-4);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.signout-btn:hover { background: var(--surface-soft); }
+.signout-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.security-block { display: grid; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.security-block:first-of-type { border-top: 0; padding-top: 0; }
+.security-block h3 { font-size: var(--fs-base); }
+.security-token {
+  display: block;
+  padding: var(--space-3);
+  border: 1px dashed var(--field);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.security-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }

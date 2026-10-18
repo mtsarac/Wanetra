@@ -4,6 +4,17 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ## [Unreleased]
 
+### Added
+
+- Sign-in with a single account. On first start Wanetra prints a one-time setup code in its log; the web UI uses it to create the account. Authentication can be turned off and on again under Settings → Security, and `WANETRA_AUTH=disabled` (or `enabled`) overrides it from the environment, which is also the way back in after a lost password.
+- Change-password form, session cookie (`HttpOnly`, `SameSite=Strict`, 30 days), throttling of repeated failed sign-ins, and a CSRF header check for state-changing requests.
+- `/metrics` bearer token, generated under Settings → Security.
+- `/api/auth/*` endpoints.
+
+### Changed
+
+- **Breaking:** with authentication on (the default for a new or upgraded install), every `/api` route, `/openapi/v1.json` and `/metrics` need a session, and an upgraded install asks for account setup on first visit. Prometheus gets `401` until you add the metrics token. Set `WANETRA_AUTH=disabled` to keep the previous open behavior. `/health*` stays open.
+
 ## [0.3.1] - 2026-10-18
 
 ### Added
