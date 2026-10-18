@@ -4,6 +4,7 @@ using Wanetra.Application.Alerts;
 using Wanetra.Application.Auth;
 using Wanetra.Application.Baselines;
 using Wanetra.Application.Notifications;
+using Wanetra.Application.Probes;
 using Wanetra.Application.Scheduling;
 using Wanetra.Application.Settings;
 using Wanetra.Application.SpeedTests;
@@ -37,6 +38,17 @@ public static class DependencyInjection
         services.AddScoped<ScheduleService>();
         services.AddHostedService<ScheduleWorker>();
         services.AddHostedService<DataRetentionWorker>();
+
+        services.TryAddSingleton<IProbeMetrics, NoopProbeMetrics>();
+        services.AddSingleton<ConnectivityState>();
+        services.AddSingleton<OutageTracker>();
+        services.AddScoped<ProbeTargetService>();
+        services.AddScoped<ProbeCycleService>();
+        services.AddScoped<OutageService>();
+        services.AddScoped<ProbeRollupService>();
+        services.AddScoped<ProbeQueryService>();
+        services.AddHostedService<ProbeWorker>();
+        services.AddHostedService<ProbeMaintenanceWorker>();
 
         return services;
     }

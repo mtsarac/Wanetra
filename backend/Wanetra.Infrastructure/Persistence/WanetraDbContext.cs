@@ -14,6 +14,10 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
     public DbSet<NotificationConfiguration> NotificationConfigurations => Set<NotificationConfiguration>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<ProbeTarget> ProbeTargets => Set<ProbeTarget>();
+    public DbSet<ProbeSample> ProbeSamples => Set<ProbeSample>();
+    public DbSet<ProbeRollup> ProbeRollups => Set<ProbeRollup>();
+    public DbSet<Outage> Outages => Set<Outage>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
 
@@ -56,6 +60,7 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
 
         modelBuilder.Entity<DegradationEvent>(entity =>
         {
+            entity.Ignore(x => x.IsRecovered);
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
             entity.Property(x => x.Reason).HasMaxLength(1024);
             entity.Property(x => x.ClosureReason).HasMaxLength(128);
@@ -74,10 +79,53 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
             entity.Property(x => x.LastErrorSummary).HasMaxLength(128);
             entity.HasIndex(x => new { x.DegradationEventId, x.Trigger, x.ConfigurationId }).IsUnique();
+            entity.HasIndex(x => new { x.OutageId, x.Trigger, x.ConfigurationId }).IsUnique();
             entity.HasOne(delivery => delivery.DegradationEvent)
                 .WithMany(degradationEvent => degradationEvent.NotificationDeliveries)
                 .HasForeignKey(delivery => delivery.DegradationEventId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(delivery => delivery.Outage)
+                .WithMany(outage => outage.NotificationDeliveries)
+                .HasForeignKey(delivery => delivery.OutageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProbeTarget>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(64).UseCollation("NOCASE");
+            entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Role).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Target).HasMaxLength(2048);
+            entity.Property(x => x.Resolver).HasMaxLength(64);
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ProbeSample>(entity =>
+        {
+            entity.Property(x => x.Error).HasMaxLength(64);
+            entity.HasIndex(x => new { x.TargetId, x.Timestamp });
+            entity.HasIndex(x => x.Timestamp);
+            entity.HasOne<ProbeTarget>().WithMany().HasForeignKey(x => x.TargetId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProbeRollup>(entity =>
+        {
+            entity.Ignore(x => x.LossPercent);
+            entity.Property(x => x.Resolution).HasConversion<string>().HasMaxLength(16);
+            entity.HasIndex(x => new { x.TargetId, x.Resolution, x.BucketStart }).IsUnique();
+            entity.HasIndex(x => new { x.Resolution, x.BucketStart });
+            entity.HasOne<ProbeTarget>().WithMany().HasForeignKey(x => x.TargetId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Outage>(entity =>
+        {
+            entity.Ignore(x => x.IsRecovered);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Scope).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Reason).HasMaxLength(256);
+            entity.Property(x => x.ClosureReason).HasMaxLength(64);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.StartedAt);
         });
 
         modelBuilder.Entity<AppSetting>(entity =>

@@ -59,6 +59,21 @@ internal sealed class AlertStateRepository(WanetraDbContext dbContext) : IAlertS
             .OrderBy(degradationEvent => degradationEvent.StartedAt)
             .ThenBy(degradationEvent => degradationEvent.Id)
             .ToListAsync(cancellationToken);
+    public Task<Outage?> GetOutageAsync(long id, CancellationToken cancellationToken) =>
+        dbContext.Outages
+            .Include(outage => outage.NotificationDeliveries)
+            .SingleOrDefaultAsync(outage => outage.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Outage>> GetPendingNotificationOutagesAsync(CancellationToken cancellationToken) =>
+        await dbContext.Outages
+            .Include(outage => outage.NotificationDeliveries)
+            .Where(outage => !outage.OpenedDeliveryInitialized
+                || (outage.Status == OutageStatus.Recovered && !outage.RecoveryDeliveryInitialized)
+                || outage.NotificationDeliveries.Any(delivery => delivery.Status == NotificationDeliveryStatus.Pending))
+            .OrderBy(outage => outage.StartedAt)
+            .ThenBy(outage => outage.Id)
+            .ToListAsync(cancellationToken);
+
     public void AddRule(AlertRule rule) => dbContext.AlertRules.Add(rule);
     public void AddEvent(DegradationEvent degradationEvent) => dbContext.DegradationEvents.Add(degradationEvent);
     public void AddNotificationDelivery(NotificationDelivery delivery) => dbContext.NotificationDeliveries.Add(delivery);

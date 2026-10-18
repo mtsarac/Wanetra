@@ -14,6 +14,8 @@ public class WanetraApiFactory : WebApplicationFactory<Program>
     {
         builder.UseSetting("WANETRA_DATA_PATH", DataPath);
         builder.UseSetting("WANETRA_AUTH", AuthSetting);
+        // The probe loop would send real traffic from every test host; probe tests drive it by hand.
+        builder.UseSetting("Probes:Enabled", "false");
     }
 
     public override async ValueTask DisposeAsync()

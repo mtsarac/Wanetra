@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Wanetra.Application.Alerts;
 using Wanetra.Application.Auth;
+using Wanetra.Application.Probes;
 using Wanetra.Api.Auth;
 using Wanetra.Api.Endpoints;
 using Prometheus;
@@ -19,6 +20,7 @@ var dataPath = Path.GetFullPath(
     builder.Environment.ContentRootPath);
 builder.Services.AddSingleton<WanetraMetrics>();
 builder.Services.AddSingleton<IPrometheusMetrics>(services => services.GetRequiredService<WanetraMetrics>());
+builder.Services.AddSingleton<IProbeMetrics>(services => services.GetRequiredService<WanetraMetrics>());
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration, dataPath);
 
@@ -38,6 +40,12 @@ await using (var scope = app.Services.CreateAsyncScope())
 await using (var scope = app.Services.CreateAsyncScope())
 {
     await scope.ServiceProvider.GetRequiredService<AuthService>().InitializeAsync(CancellationToken.None);
+}
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<ProbeTargetService>().EnsureDefaultsAsync(CancellationToken.None);
+    // Whatever was open when Wanetra stopped cannot be followed up; the notification worker reports it.
+    await scope.ServiceProvider.GetRequiredService<OutageService>().CloseInterruptedAsync(CancellationToken.None);
 }
 await using (var scope = app.Services.CreateAsyncScope())
 {
@@ -85,6 +93,7 @@ app.MapSpeedTestEndpoints();
 app.MapScheduleEndpoints();
 app.MapBaselineEndpoints();
 app.MapAlertEndpoints();
+app.MapProbeEndpoints();
 app.MapNotificationEndpoints();
 app.MapFallbackToFile("index.html");
 

@@ -3,7 +3,7 @@ using Wanetra.Domain;
 
 namespace Wanetra.Api.Prometheus;
 
-public sealed class WanetraMetrics : IPrometheusMetrics
+public sealed class WanetraMetrics : IPrometheusMetrics, IProbeMetrics
 {
     private readonly Gauge downloadMbps;
     private readonly Gauge uploadMbps;
@@ -16,6 +16,13 @@ public sealed class WanetraMetrics : IPrometheusMetrics
     private readonly Gauge lastSpeedTestTimestamp;
     private readonly Counter speedTestsTotal;
     private readonly Counter speedTestFailuresTotal;
+    private readonly Gauge probeUp;
+    private readonly Gauge probeRttMs;
+    private readonly Counter probeFailuresTotal;
+    private readonly Gauge outageActive;
+    private readonly Counter outagesTotal;
+    private readonly Lock probeGate = new();
+    private readonly Dictionary<string, string> probeRoles = new(StringComparer.Ordinal);
 
     // Owned per instance so hosts in the same process (tests) never share gauge state.
     public CollectorRegistry Registry { get; } = Metrics.NewCustomRegistry();
@@ -34,6 +41,12 @@ public sealed class WanetraMetrics : IPrometheusMetrics
         lastSpeedTestTimestamp = factory.CreateGauge("wanetra_last_speedtest_timestamp", "Unix timestamp of the latest speed test.");
         speedTestsTotal = factory.CreateCounter("wanetra_speedtests_total", "Total number of completed speed tests.");
         speedTestFailuresTotal = factory.CreateCounter("wanetra_speedtest_failures_total", "Total number of failed speed tests.");
+
+        probeUp = factory.CreateGauge("wanetra_probe_up", "Whether the latest probe of a target succeeded (1 or 0).", ["target", "role"]);
+        probeRttMs = factory.CreateGauge("wanetra_probe_rtt_ms", "Round-trip time of the latest probe of a target in milliseconds, NaN when it failed.", ["target", "role"]);
+        probeFailuresTotal = factory.CreateCounter("wanetra_probe_failures_total", "Total number of failed probes per target.", ["target", "role"]);
+        outageActive = factory.CreateGauge("wanetra_outage_active", "Whether a connection outage is open (1 or 0).");
+        outagesTotal = factory.CreateCounter("wanetra_outages_total", "Total number of connection outages opened.");
 
         downloadMbps.Set(0);
         uploadMbps.Set(0);
@@ -103,5 +116,47 @@ public sealed class WanetraMetrics : IPrometheusMetrics
         {
             gauge.Set(value.Value);
         }
+    }
+
+    public void RecordProbe(string target, string role, bool success, double? rttMs)
+    {
+        lock (probeGate)
+        {
+            if (probeRoles.TryGetValue(target, out var knownRole) && knownRole != role)
+            {
+                RemoveSeries(target, knownRole);
+            }
+
+            probeRoles[target] = role;
+        }
+
+        probeUp.WithLabels(target, role).Set(success ? 1 : 0);
+        probeRttMs.WithLabels(target, role).Set(success && rttMs.HasValue ? rttMs.Value : double.NaN);
+        if (!success)
+        {
+            probeFailuresTotal.WithLabels(target, role).Inc();
+        }
+    }
+
+    public void RemoveProbeTarget(string target)
+    {
+        lock (probeGate)
+        {
+            if (probeRoles.Remove(target, out var role))
+            {
+                RemoveSeries(target, role);
+            }
+        }
+    }
+
+    public void SetOutageActive(bool active) => outageActive.Set(active ? 1 : 0);
+
+    public void RecordOutageOpened() => outagesTotal.Inc();
+
+    private void RemoveSeries(string target, string role)
+    {
+        probeUp.RemoveLabelled(target, role);
+        probeRttMs.RemoveLabelled(target, role);
+        probeFailuresTotal.RemoveLabelled(target, role);
     }
 }
