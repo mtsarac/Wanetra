@@ -195,7 +195,7 @@ export function sourceText(setting: Setting): string {
 export function lockReasonText(setting: Setting): string | null {
   if (!setting.locked) return null
   if (setting.lockReason === 'restricted') {
-    return `Executable paths can only be set with environment variables (${setting.environmentVariable}) until authentication is available.`
+    return `Executable paths can only be set with the environment variable ${setting.environmentVariable}.`
   }
   return `Set by environment variable ${setting.environmentVariable}; remove it to change this here.`
 }

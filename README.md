@@ -60,7 +60,7 @@ An empty or whitespace environment variable counts as unset. This ensures Docker
 
 When a setting is set via an environment variable, it becomes locked and cannot be edited in the UI or changed via the API. The UI displays the environment variable name and shows the setting as read-only.
 
-Executable paths are restricted (`speedtest.librespeed.executablePath`, `speedtest.cloudflare.executablePath`, `speedtest.ookla.executablePath`). Because Wanetra does not yet require authentication, editable binary paths would allow arbitrary command execution by anyone with access to the UI. Restricted settings cannot be changed through the UI or API; they can only be set via environment variables.
+Executable paths are restricted (`speedtest.librespeed.executablePath`, `speedtest.cloudflare.executablePath`, `speedtest.ookla.executablePath`). Editable binary paths would let anyone with a session run arbitrary commands, and sign-in can be turned off. Restricted settings cannot be changed through the UI or API; they can only be set via environment variables.
 
 Common configuration variables:
 
