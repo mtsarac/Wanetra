@@ -13,6 +13,14 @@ public static class NotificationMessageBuilder
             _ => throw new ArgumentOutOfRangeException(nameof(trigger), trigger, null),
         };
 
+    public static NotificationMessage Build(NotificationTrigger trigger, Outage outage) =>
+        trigger switch
+        {
+            NotificationTrigger.Opened => BuildOutageOpened(outage),
+            NotificationTrigger.Recovered => BuildOutageRecovered(outage),
+            _ => throw new ArgumentOutOfRangeException(nameof(trigger), trigger, null),
+        };
+
     public static NotificationMessage Test(string provider) => new(
         "Wanetra test notification",
         $"Test notification from Wanetra via {provider}.",
@@ -21,6 +29,49 @@ public static class NotificationMessageBuilder
         null,
         null,
         null);
+
+    private static NotificationMessage BuildOutageOpened(Outage outage)
+    {
+        var title = outage.Scope switch
+        {
+            OutageScope.LocalNetwork => "Local network outage",
+            OutageScope.Dns => "DNS outage",
+            _ => "Internet outage",
+        };
+        var body = $"{title} detected\n\n{outage.Reason}.\nStarted: {outage.StartedAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)} UTC";
+
+        return new NotificationMessage(title, body, "connection.outage", DateTime.UtcNow, null, null, null);
+    }
+
+    private static NotificationMessage BuildOutageRecovered(Outage outage)
+    {
+        var started = outage.StartedAt.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        string body;
+        if (outage.EndedAt is { } ended)
+        {
+            var duration = ended - outage.StartedAt;
+            var ending = ended.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+            body = outage.ClosureReason switch
+            {
+                OutageClosureReasons.Interrupted =>
+                    $"Monitoring was interrupted. The outage that began at {started} UTC was last seen at {ending} UTC ({FormatDuration(duration)}).",
+                OutageClosureReasons.MonitoringDisabled =>
+                    $"Connection monitoring was turned off. The outage that began at {started} UTC was closed at {ending} UTC ({FormatDuration(duration)}).",
+                _ => $"Connection restored after {FormatDuration(duration)} (down {started}\u2013{ending} UTC).",
+            };
+        }
+        else
+        {
+            body = "Connection restored.";
+        }
+
+        return new NotificationMessage("Connection restored", body, "connection.restored", DateTime.UtcNow, null, null, null);
+    }
+
+    private static string FormatDuration(TimeSpan duration) =>
+        duration.TotalHours >= 1
+            ? $"{(int)duration.TotalHours}h {duration.Minutes}m {duration.Seconds}s"
+            : $"{(int)duration.TotalMinutes}m {duration.Seconds}s";
 
     private static NotificationMessage BuildOpened(DegradationEvent degradationEvent)
     {

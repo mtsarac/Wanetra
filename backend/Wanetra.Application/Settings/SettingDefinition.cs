@@ -12,6 +12,7 @@ public static class SettingGroupNames
 {
     public const string SpeedTest = "speedtest";
     public const string Retention = "retention";
+    public const string Probes = "probes";
 }
 
 public static class SettingTypeNames

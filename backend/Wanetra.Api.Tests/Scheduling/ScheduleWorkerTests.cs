@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Wanetra.Application;
 using Wanetra.Api.Tests.SpeedTests;
+using Wanetra.Application.Probes;
 using Wanetra.Application.Scheduling;
 using Wanetra.Application.SpeedTests;
 using Wanetra.Domain;
@@ -135,6 +136,24 @@ public class ScheduleWorkerTests
     }
 
     [Fact]
+    public async Task Scheduled_run_is_skipped_while_the_connection_is_down_and_resumes_after()
+    {
+        using var harness = StartHarness(EveryMinute(enabled: true));
+        await harness.Started();
+        harness.Connectivity.SetOutageOpen(true);
+
+        await harness.AdvancePastAsync(TimeSpan.FromMinutes(3));
+        await Task.Delay(Settle);
+        Assert.Equal(0, harness.Invocations);
+        Assert.True(harness.WorkerRunning);
+
+        harness.Connectivity.SetOutageOpen(false);
+        await harness.AdvanceUntilAsync(() => harness.Invocations >= 1);
+
+        Assert.Equal(1, harness.Invocations);
+    }
+
+    [Fact]
     public async Task Cancellation_stops_worker_while_waiting()
     {
         using var harness = StartHarness(EveryMinute(enabled: true));
@@ -201,6 +220,7 @@ public class ScheduleWorkerTests
 
             Signal = provider.GetRequiredService<ScheduleChangeSignal>();
             Coordinator = provider.GetRequiredService<SpeedTestCoordinator>();
+            Connectivity = provider.GetRequiredService<ConnectivityState>();
             Worker = provider.GetServices<IHostedService>().OfType<ScheduleWorker>().Single();
         }
 
@@ -213,6 +233,8 @@ public class ScheduleWorkerTests
         public ScheduleChangeSignal Signal { get; }
 
         public SpeedTestCoordinator Coordinator { get; }
+
+        public ConnectivityState Connectivity { get; }
 
         public ScheduleWorker Worker { get; }
 

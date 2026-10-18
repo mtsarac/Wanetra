@@ -13,6 +13,13 @@ public static class SettingKeys
     public const string SpeedTestOoklaExecutablePath = "speedtest.ookla.executablePath";
     public const string SpeedTestOoklaAcceptLicense = "speedtest.ookla.acceptLicense";
     public const string RetentionDays = "retention.days";
+    public const string ProbesEnabled = "probes.enabled";
+    public const string ProbesIntervalSeconds = "probes.intervalSeconds";
+    public const string ProbesTimeoutMs = "probes.timeoutMs";
+    public const string ProbesOutageFailuresRequired = "probes.outage.failuresRequired";
+    public const string ProbesOutageRecoveriesRequired = "probes.outage.recoveriesRequired";
+    public const string ProbesRawRetentionHours = "probes.retention.rawHours";
+    public const string ProbesMinuteRetentionDays = "probes.retention.minuteDays";
 }
 
 public static class SpeedTestEngineNames
@@ -144,6 +151,81 @@ public static class SettingDefinitions
             Restricted: false,
             Min: 1,
             Max: null),
+
+        new(
+            Key: SettingKeys.ProbesEnabled,
+            Group: SettingGroupNames.Probes,
+            Type: SettingType.Boolean,
+            DefaultValue: true,
+            Nullable: false,
+            ConfigurationKey: "Probes:Enabled",
+            Restricted: false),
+
+        new(
+            Key: SettingKeys.ProbesIntervalSeconds,
+            Group: SettingGroupNames.Probes,
+            Type: SettingType.Integer,
+            DefaultValue: 10,
+            Nullable: false,
+            ConfigurationKey: "Probes:IntervalSeconds",
+            Restricted: false,
+            Min: 5,
+            Max: 300),
+
+        new(
+            Key: SettingKeys.ProbesTimeoutMs,
+            Group: SettingGroupNames.Probes,
+            Type: SettingType.Integer,
+            DefaultValue: 2000,
+            Nullable: false,
+            ConfigurationKey: "Probes:TimeoutMs",
+            Restricted: false,
+            Min: 200,
+            Max: 10000),
+
+        new(
+            Key: SettingKeys.ProbesOutageFailuresRequired,
+            Group: SettingGroupNames.Probes,
+            Type: SettingType.Integer,
+            DefaultValue: 3,
+            Nullable: false,
+            ConfigurationKey: "Probes:Outage:FailuresRequired",
+            Restricted: false,
+            Min: 1,
+            Max: 20),
+
+        new(
+            Key: SettingKeys.ProbesOutageRecoveriesRequired,
+            Group: SettingGroupNames.Probes,
+            Type: SettingType.Integer,
+            DefaultValue: 3,
+            Nullable: false,
+            ConfigurationKey: "Probes:Outage:RecoveriesRequired",
+            Restricted: false,
+            Min: 1,
+            Max: 20),
+
+        new(
+            Key: SettingKeys.ProbesRawRetentionHours,
+            Group: SettingGroupNames.Probes,
+            Type: SettingType.Integer,
+            DefaultValue: 48,
+            Nullable: false,
+            ConfigurationKey: "Probes:Retention:RawHours",
+            Restricted: false,
+            Min: 1,
+            Max: 720),
+
+        new(
+            Key: SettingKeys.ProbesMinuteRetentionDays,
+            Group: SettingGroupNames.Probes,
+            Type: SettingType.Integer,
+            DefaultValue: 30,
+            Nullable: false,
+            ConfigurationKey: "Probes:Retention:MinuteDays",
+            Restricted: false,
+            Min: 1,
+            Max: 365),
     ];
 
     private static readonly Dictionary<string, SettingDefinition> ByKeyLookup =
