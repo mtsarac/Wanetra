@@ -97,7 +97,7 @@ export type DegradationEvent = {
 }
 
 export type SettingType = 'choice' | 'integer' | 'boolean' | 'text'
-export type SettingGroup = 'speedtest' | 'retention'
+export type SettingGroup = 'speedtest' | 'retention' | 'probes'
 export type SettingSource = 'default' | 'stored' | 'environment'
 export type SettingLockReason = 'environment' | 'restricted'
 
@@ -172,6 +172,94 @@ export type NotificationConfigurationList = {
 }
 export type NotificationTestTarget = { id: number } | { provider: string; configurationJson: string }
 
+export type ProbeKind = 'icmp' | 'tcp' | 'dns' | 'http'
+export type ProbeRole = 'gateway' | 'internet' | 'dns' | 'custom'
+
+export type ProbeTarget = {
+  id: number
+  name: string
+  kind: ProbeKind
+  role: ProbeRole
+  target: string | null
+  port: number | null
+  resolver: string | null
+  enabled: boolean
+  createdAt: string
+}
+
+export type ProbeTargetInput = Omit<ProbeTarget, 'id' | 'createdAt'>
+
+export type LayerState = 'up' | 'down' | 'unknown'
+export type OutageScope = 'localNetwork' | 'wan' | 'dns'
+export type ConnectivityState = 'healthy' | 'degraded' | 'outage' | 'unknown' | 'disabled'
+
+export type ProbeTargetStatus = {
+  target: ProbeTarget
+  up: boolean | null
+  rttMs: number | null
+  checkedAt: string | null
+  lossPercent: number | null
+  avgRttMs: number | null
+  error: string | null
+}
+
+export type Outage = {
+  id: number
+  startedAt: string
+  endedAt: string | null
+  status: 'active' | 'recovered'
+  scope: OutageScope
+  reason: string
+  closureReason: string | null
+  durationSeconds: number
+  notificationSent: boolean
+  recoveryNotificationSent: boolean
+  notificationDeliveries: NotificationDelivery[]
+}
+
+export type ConnectivityStatus = {
+  monitoring: boolean
+  intervalSeconds: number
+  state: ConnectivityState
+  layers: { gateway: LayerState; internet: LayerState; dns: LayerState }
+  scope: OutageScope | null
+  reason: string | null
+  lastCheckedAt: string | null
+  targets: ProbeTargetStatus[]
+  activeOutage: Outage | null
+}
+
+export type ProbePoint = {
+  timestamp: string
+  rttMs: number | null
+  rttMinMs: number | null
+  rttMaxMs: number | null
+  jitterMs: number | null
+  lossPercent: number
+  sent: number
+}
+
+export type ProbeSeries = {
+  targetId: number
+  resolution: 'raw' | 'minute' | 'hour'
+  from: string
+  to: string
+  points: ProbePoint[]
+}
+
+export type UptimeRange = '24h' | '7d' | '30d' | '90d'
+
+export type Uptime = {
+  range: UptimeRange
+  from: string
+  to: string
+  uptimePercent: number
+  outageCount: number
+  totalOutageSeconds: number
+  longestOutageSeconds: number
+  coversFullRange: boolean
+}
+
 type ApiError = { code?: string; message?: string }
 
 export const UNAUTHORIZED_EVENT = 'wanetra:unauthorized'
@@ -226,13 +314,15 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return body.trim() === '' ? undefined as T : JSON.parse(body) as T
 }
 
-function postJson<T>(url: string, body?: unknown): Promise<T> {
+function sendJson<T>(method: 'POST' | 'PUT', url: string, body?: unknown): Promise<T> {
   return request<T>(url, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 }
+
+const postJson = <T>(url: string, body?: unknown) => sendJson<T>('POST', url, body)
 
 async function getLatest(): Promise<SpeedTestResult | null> {
   const response = await apiFetch('/api/speedtests/latest')
@@ -242,6 +332,22 @@ async function getLatest(): Promise<SpeedTestResult | null> {
 }
 
 export const api = {
+  getConnectivity: () => request<ConnectivityStatus>('/api/probes/status'),
+  getProbeTargets: () => request<ProbeTarget[]>('/api/probes/targets'),
+  createProbeTarget: (input: ProbeTargetInput) => postJson<ProbeTarget>('/api/probes/targets', input),
+  updateProbeTarget: (id: number, input: ProbeTargetInput) =>
+    sendJson<ProbeTarget>('PUT', `/api/probes/targets/${id}`, input),
+  deleteProbeTarget: (id: number) => request<void>(`/api/probes/targets/${id}`, { method: 'DELETE' }),
+  getProbeSeries: (targetId: number, from: Date, to: Date) => {
+    const params = new URLSearchParams({
+      targetId: String(targetId),
+      from: from.toISOString(),
+      to: to.toISOString(),
+    })
+    return request<ProbeSeries>(`/api/probes/series?${params}`)
+  },
+  getOutages: (count = 20) => request<Outage[]>(`/api/outages?count=${count}`),
+  getUptime: (range: UptimeRange) => request<Uptime>(`/api/uptime?range=${range}`),
   getAuthStatus: () => request<AuthStatus>('/api/auth/status'),
   setupAuth: (setupCode: string, username: string, password: string) =>
     postJson<AuthStatus>('/api/auth/setup', { setupCode, username, password }),

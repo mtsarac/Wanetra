@@ -11,7 +11,7 @@ import HistoryPage from './HistoryPage'
 import NotificationsPanel from './Notifications'
 import ScheduleSettings from './ScheduleSettings'
 import { api } from './lib/api'
-import type { AlertRule, Schedule, SpeedTestHistoryPage } from './lib/api'
+import type { AlertRule, ConnectivityStatus, Schedule, SpeedTestHistoryPage } from './lib/api'
 vi.mock('echarts/core', () => ({
   use: vi.fn(),
   init: vi.fn(() => ({ setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn() })),
@@ -34,6 +34,18 @@ const emptyPage: SpeedTestHistoryPage = {
   items: [], page: 1, pageSize: 200, totalCount: 0, totalPages: 0,
 }
 
+const healthyConnectivity: ConnectivityStatus = {
+  monitoring: true,
+  intervalSeconds: 10,
+  state: 'healthy',
+  layers: { gateway: 'up', internet: 'up', dns: 'up' },
+  scope: null,
+  reason: null,
+  lastCheckedAt: null,
+  targets: [],
+  activeOutage: null,
+}
+
 function setupDashboard() {
   vi.spyOn(api, 'getLatest').mockResolvedValue(null)
   vi.spyOn(api, 'getStatus').mockResolvedValue({ state: 'idle', trigger: null, startedAt: null, errorMessage: null })
@@ -47,6 +59,11 @@ function setupDashboard() {
   })
   vi.spyOn(api, 'getActiveAlert').mockResolvedValue(null)
   vi.spyOn(api, 'getHistoryPage').mockResolvedValue(emptyPage)
+  vi.spyOn(api, 'getConnectivity').mockResolvedValue(healthyConnectivity)
+  vi.spyOn(api, 'getUptime').mockResolvedValue({
+    range: '24h', from: '', to: '', uptimePercent: 100, outageCount: 0,
+    totalOutageSeconds: 0, longestOutageSeconds: 0, coversFullRange: true,
+  })
 }
 
 const emptyRule: AlertRule = {
@@ -205,7 +222,7 @@ describe('dashboard', () => {
       .mockResolvedValue({ state: 'running', trigger: 'manual', startedAt: '2026-09-21T12:00:00Z', errorMessage: null })
     vi.spyOn(api, 'runSpeedTest').mockResolvedValue({ status: 'running' })
     const user = userEvent.setup()
-    renderWithClient(<App />)
+    renderWithClient(<MemoryRouter><App /></MemoryRouter>)
 
     await user.click(await screen.findByRole('button', { name: 'Run speed test' }))
     expect(await screen.findByRole('button', { name: 'Running…' })).toBeTruthy()
@@ -215,7 +232,7 @@ describe('dashboard', () => {
   it('renders dashboard API errors', async () => {
     setupDashboard()
     vi.spyOn(api, 'getLatest').mockRejectedValue(new Error('Latest result unavailable'))
-    renderWithClient(<App />)
+    renderWithClient(<MemoryRouter><App /></MemoryRouter>)
     expect((await screen.findByRole('alert')).textContent).toContain('Latest result unavailable')
   })
 
@@ -248,7 +265,7 @@ describe('dashboard', () => {
       totalCount: 1,
       totalPages: 1,
     })
-    renderWithClient(<App />)
+    renderWithClient(<MemoryRouter><App /></MemoryRouter>)
     expect(await screen.findByRole('figure', { name: 'Throughput history figure' })).toBeTruthy()
     expect(await screen.findByRole('figure', { name: 'Connection quality figure' })).toBeTruthy()
     expect(screen.getByText('Throughput measurement summary')).toBeTruthy()

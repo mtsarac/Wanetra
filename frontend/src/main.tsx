@@ -8,6 +8,7 @@ import AuthGate from './auth/AuthGate'
 import AlertSettings from './AlertSettings'
 import App from './App.tsx'
 import AppShell from './AppShell'
+import ConnectivityPage from './connectivity/ConnectivityPage'
 import HistoryPage from './HistoryPage'
 import NotificationsPanel from './Notifications'
 import SettingsPage from './SettingsPage'
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <App /> },
+      { path: 'connectivity', element: <ConnectivityPage /> },
       { path: 'history', element: <HistoryPage /> },
       { path: 'alerts', element: <AlertSettings /> },
       { path: 'notifications', element: <NotificationsPanel /> },

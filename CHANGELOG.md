@@ -6,6 +6,10 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ### Added
 
+- Connection monitoring. Wanetra probes the default gateway, three public IPs and a DNS lookup every 10 seconds (ping with a TCP fallback, TCP, DNS and HTTP checks), keeps raw samples with per-minute and per-hour summaries, and opens an outage when every internet target stays unreachable. The outage says whether the local network, the internet link or DNS is at fault. Targets can be added, paused, edited and deleted.
+- Outage notifications through the existing ntfy and webhook destinations. A notice that cannot be sent while offline is delivered after the connection returns.
+- **Connectivity** page and a live connection summary on the Dashboard, with uptime for 24 hours, 7 days and 30 days, a latency and packet-loss chart and an outage timeline.
+- `/api/probes/*`, `/api/outages` and `/api/uptime` endpoints, probe and outage Prometheus metrics, and Settings → Connection monitoring (`Probes__*` environment variables).
 - Sign-in with a single account. On first start Wanetra prints a one-time setup code in its log; the web UI uses it to create the account. Authentication can be turned off and on again under Settings → Security, and `WANETRA_AUTH=disabled` (or `enabled`) overrides it from the environment, which is also the way back in after a lost password.
 - Change-password form, session cookie (`HttpOnly`, `SameSite=Strict`, 30 days), throttling of repeated failed sign-ins, and a CSRF header check for state-changing requests.
 - `/metrics` bearer token, generated under Settings → Security.
@@ -13,6 +17,9 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ### Changed
 
+- Scheduled speed tests are skipped while an outage is open.
+- Probe results gathered during a speed test are stored but do not count towards an outage.
+- The Compose files set `net.ipv4.ping_group_range` so the non-root container can ping.
 - **Breaking:** with authentication on (the default for a new or upgraded install), every `/api` route, `/openapi/v1.json` and `/metrics` need a session, and an upgraded install asks for account setup on first visit. Prometheus gets `401` until you add the metrics token. Set `WANETRA_AUTH=disabled` to keep the previous open behavior. `/health*` stays open.
 
 ## [0.3.1] - 2026-10-18
