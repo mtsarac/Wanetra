@@ -4,6 +4,16 @@ export const SPEEDTEST_ENGINE_KEY = 'speedtest.engine'
 export const OOKLA_ACCEPT_LICENSE_KEY = 'speedtest.ookla.acceptLicense'
 export const RETENTION_DAYS_KEY = 'retention.days'
 
+export const PROBES_ENABLED_KEY = 'probes.enabled'
+export const PROBE_INTEGER_KEYS = [
+  'probes.intervalSeconds',
+  'probes.timeoutMs',
+  'probes.outage.failuresRequired',
+  'probes.outage.recoveriesRequired',
+  'probes.retention.rawHours',
+  'probes.retention.minuteDays',
+] as const
+
 export type EngineId = 'librespeed' | 'cloudflare' | 'ookla'
 
 export type EngineOption = {
@@ -84,6 +94,34 @@ export const FIELD_METAS: Record<string, FieldMeta> = {
   'speedtest.ookla.executablePath': {
     label: 'Executable path (fallback)',
     help: 'Optional fallback binary if Wanetra cannot download the official CLI directly.',
+  },
+  [PROBES_ENABLED_KEY]: {
+    label: 'Monitor the connection',
+    help: 'Probe the gateway, public IPs and DNS continuously and record outages.',
+  },
+  'probes.intervalSeconds': {
+    label: 'Check every (seconds)',
+    help: 'How often every target is probed.',
+  },
+  'probes.timeoutMs': {
+    label: 'Probe timeout (milliseconds)',
+    help: 'A probe that has not answered by then counts as lost.',
+  },
+  'probes.outage.failuresRequired': {
+    label: 'Bad checks before an outage opens',
+    help: 'Consecutive checks in which the internet (or DNS) is unreachable.',
+  },
+  'probes.outage.recoveriesRequired': {
+    label: 'Good checks before it closes',
+    help: 'Consecutive healthy checks needed to call the outage over.',
+  },
+  'probes.retention.rawHours': {
+    label: 'Keep every probe for (hours)',
+    help: 'Raw samples are summarized per minute and then deleted after this.',
+  },
+  'probes.retention.minuteDays': {
+    label: 'Keep per-minute summaries for (days)',
+    help: 'Hourly summaries and outages follow “Keep results for (days)” under measurement history.',
   },
   [RETENTION_DAYS_KEY]: {
     label: 'Keep results for (days)',

@@ -10,9 +10,19 @@ services:
       WANETRA_DATA_PATH: ${WANETRA_DATA_PATH:-/data}
       WANETRA_AUTH: ${WANETRA_AUTH:-}
       DataRetention__Days: ${DataRetention__Days:-}
+      Probes__Enabled: ${Probes__Enabled:-}
+      Probes__IntervalSeconds: ${Probes__IntervalSeconds:-}
+      Probes__TimeoutMs: ${Probes__TimeoutMs:-}
+      Probes__Outage__FailuresRequired: ${Probes__Outage__FailuresRequired:-}
+      Probes__Outage__RecoveriesRequired: ${Probes__Outage__RecoveriesRequired:-}
+      Probes__Retention__RawHours: ${Probes__Retention__RawHours:-}
+      Probes__Retention__MinuteDays: ${Probes__Retention__MinuteDays:-}
       SpeedTest__Engine: ${SpeedTest__Engine:-}
       SpeedTest__Ookla__AcceptLicense: ${SpeedTest__Ookla__AcceptLicense:-}
       SpeedTest__Ookla__ExecutablePath: ${SpeedTest__Ookla__ExecutablePath:-}
+    sysctls:
+      # Lets the non-root container open ICMP sockets, so the gateway and internet probes can ping.
+      net.ipv4.ping_group_range: "0 2147483647"
     volumes:
       - wanetra-data:/data
 

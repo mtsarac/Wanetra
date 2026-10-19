@@ -4,16 +4,18 @@
 [![Release](https://img.shields.io/github/v/release/mtsarac/Wanetra)](https://github.com/mtsarac/Wanetra/releases/latest)
 [![License](https://img.shields.io/github/license/mtsarac/Wanetra)](LICENSE)
 
-Wanetra is a self-hosted monitor for your internet connection. It runs speed tests on a schedule, keeps the history in SQLite, shows it in a web dashboard, and tells you through ntfy or a webhook when your connection degrades and when it recovers. It also exposes Prometheus metrics. It runs as a single Docker container.
+Wanetra is a self-hosted monitor for your internet connection. It probes the connection every few seconds to catch outages and tell you where they are, runs speed tests on a schedule, keeps the history in SQLite, shows it in a web dashboard, and tells you through ntfy or a webhook when your connection degrades and when it recovers. It also exposes Prometheus metrics. It runs as a single Docker container.
 
 It is pre-1.0. The API and the database schema can still change between releases, so back up the data volume before upgrading.
 
 ## Features
 
+- Continuous connection monitoring: ping, TCP, DNS and HTTP probes of your gateway, public IPs and DNS, with outage detection that says whether the router, the ISP or DNS is at fault
+- Uptime over 24 hours, 7 days and 30 days, a latency and packet-loss chart, and an outage timeline
 - Speed tests with one of three engines: LibreSpeed, Cloudflare, or Ookla
 - Manual runs and cron schedules with a timezone, one test at a time
 - History with filtering and paging, plus a seven-day rolling baseline
-- Degradation alerts (thresholds and drops against the baseline) with recovery notices, sent through ntfy or a generic webhook
+- Degradation alerts (thresholds and drops against the baseline) and outage alerts, with recovery notices, sent through ntfy or a generic webhook
 - Prometheus metrics at `/metrics`
 - Sign-in with a single account, created on first start; it can be turned off again
 - Automatic cleanup of old results (365 days by default)
@@ -70,7 +72,9 @@ Common configuration variables:
 | `WANETRA_PORT` | `8080` | Host port published by the Compose files |
 | `WANETRA_BIND_ADDRESS` | `127.0.0.1` | Host interface published by the Compose files |
 | `WANETRA_VERSION` | `latest` | Image tag used by `compose.yaml` |
-| `DataRetention__Days` | `365` | Days of speed-test history to keep |
+| `DataRetention__Days` | `365` | Days of speed-test history, hourly probe summaries and outages to keep |
+| `Probes__Enabled` | `true` | Turns connection monitoring on or off |
+| `Probes__IntervalSeconds` | `10` | Seconds between probe rounds (5 to 300) |
 | `SpeedTest__Engine` | `librespeed` | Active engine: `librespeed`, `cloudflare`, or `ookla` |
 | `SpeedTest__Ookla__AcceptLicense` | `false` | Required for `ookla`. Read [Ookla and its license](#ookla-and-its-license) first |
 | `SpeedTest__Ookla__ExecutablePath` | empty | Optional fallback binary for `ookla` |
@@ -134,6 +138,44 @@ How the download works:
 
 Fallback: if the download fails (the host is offline, Ookla has moved the file, the checksum does not match, or the data directory is not writable), Wanetra uses the binary at `SpeedTest__Ookla__ExecutablePath`, if you set one, and logs a warning. Install that binary yourself and mount it into the container, for example read-only at `/usr/local/bin/speedtest`. Without a fallback, the test fails with the download error. While the download keeps failing, each test tries it again before using the fallback, so a host that is permanently offline pays a failed attempt, up to 30 seconds, on every run.
 
+## Connection monitoring
+
+A speed test every half hour cannot see a three-minute outage. Wanetra therefore also probes the connection every 10 seconds. Open **Connectivity** in the UI to see the live state, uptime, a latency chart and the outage timeline. The Dashboard shows a short version.
+
+A new install probes five targets:
+
+| Target | Check | Counts as |
+| --- | --- | --- |
+| Gateway | ping to the default gateway, detected from the routing table | gateway |
+| Cloudflare 1.1.1.1, Google 8.8.8.8, Quad9 9.9.9.9 | ping | internet |
+| DNS lookup | resolve `cloudflare.com` with the system resolver | dns |
+
+You can add, pause, edit and delete targets on the Connectivity page (up to 32). A target can ping a host, open a TCP port, resolve a name (optionally through a specific resolver such as `1.1.1.1`) or fetch an HTTP URL. `custom` targets show up in charts and metrics but never raise an outage.
+
+### How an outage is decided
+
+Each round, a layer is *up* when any of its targets answered and *down* when every one failed. One flaky target therefore never counts.
+
+| Gateway | Internet | DNS | Result |
+| --- | --- | --- | --- |
+| down | down | any | **Local network** outage: the router or the link to it |
+| up or unknown | down | any | **Internet** outage: the router answers but the ISP link does not |
+| any | up | down | **DNS** outage |
+
+A router that ignores ping while the internet works is not an outage.
+
+Three bad rounds in a row open an outage, dated from the first bad round, and three good rounds close it, dated from the first good round. Both counts are settings. Failures during a speed test do not count, because the test saturates the link; the samples are still stored. Scheduled speed tests are skipped while an outage is open, so they do not fail for a reason you already know. If Wanetra itself restarts during an outage, the outage is closed as `interrupted` at the last time it was seen.
+
+Outage notices use the same ntfy and webhook destinations as degradation alerts. A notice that cannot be delivered because the connection is down stays queued and is retried every minute, so you get "internet outage, 14:02 to 14:19 (17m)" when the connection comes back. A webhook or ntfy server on your LAN is notified immediately.
+
+### Storage
+
+Every probe is stored for 48 hours, summarized per minute for 30 days and per hour for as long as `DataRetention__Days` (365). Outages are kept for `DataRetention__Days`. All of these are settings under Settings → Connection monitoring. Uptime is computed from the recorded outages, and it only covers the time monitoring has been running.
+
+### Ping inside Docker
+
+Wanetra runs as a non-root user. Ping works without extra privileges when the kernel lets that user open ICMP sockets, which the Compose files allow with `net.ipv4.ping_group_range`. If ICMP is still not available, Wanetra logs a warning and falls back to TCP checks on ports 443 and 80, where a connection or a reset both count as "reachable". Under bridge networking the detected gateway is the Docker bridge address of the host, not your router.
+
 ## Alerts and notifications
 
 A fresh install has one alert rule: download falling 30% below the baseline. You can also set minimum download and upload, maximum latency, jitter and packet loss, and a drop for upload.
@@ -149,7 +191,7 @@ Reading the notification settings never returns secrets or webhook URLs. When yo
 
 ## Metrics
 
-`/metrics` serves Prometheus metrics: the latest `wanetra_download_mbps`, `wanetra_upload_mbps`, `wanetra_latency_ms`, `wanetra_jitter_ms` and `wanetra_packet_loss_percent`, plus `wanetra_speedtest_success`, `wanetra_speedtest_duration_seconds`, `wanetra_last_speedtest_timestamp`, `wanetra_connection_degraded`, the counters `wanetra_speedtests_total` and `wanetra_speedtest_failures_total`, and standard HTTP metrics.
+`/metrics` serves Prometheus metrics: the latest `wanetra_download_mbps`, `wanetra_upload_mbps`, `wanetra_latency_ms`, `wanetra_jitter_ms` and `wanetra_packet_loss_percent`, plus `wanetra_speedtest_success`, `wanetra_speedtest_duration_seconds`, `wanetra_last_speedtest_timestamp`, `wanetra_connection_degraded`, the counters `wanetra_speedtests_total` and `wanetra_speedtest_failures_total`, the connection-monitoring metrics `wanetra_probe_up{target,role}`, `wanetra_probe_rtt_ms{target,role}` (`NaN` when a probe failed), `wanetra_probe_failures_total{target,role}`, `wanetra_outage_active` and `wanetra_outages_total`, and standard HTTP metrics.
 
 ## Security
 
@@ -189,6 +231,12 @@ To report a vulnerability, follow [SECURITY.md](SECURITY.md).
 | `GET` | `/api/baseline` | Seven-day rolling download and upload baselines. |
 | `GET` | `/api/alerts/active` | The open degradation event, or `404` when there is none. |
 | `GET` | `/api/alerts/events?count=` | Recent degradation events (1 to 100, default 20). |
+| `GET`, `POST` | `/api/probes/targets` | List probe targets or add one `{name, kind, role, target, port, resolver, enabled}`. `kind` is `icmp`, `tcp`, `dns` or `http`; `role` is `gateway`, `internet`, `dns` or `custom`. |
+| `PUT`, `DELETE` | `/api/probes/targets/{id}` | Replace or delete a target. Deleting removes its samples. |
+| `GET` | `/api/probes/status` | Live state (`healthy`, `degraded`, `outage`, `unknown`, `disabled`), the state of each layer, every target's latest result and the open outage. |
+| `GET` | `/api/probes/series?targetId=&from=&to=&resolution=` | Latency and loss for one target. `resolution` is `auto` (default), `raw` (24 hours at most), `minute` or `hour`. |
+| `GET` | `/api/outages?count=` | Recent outages (1 to 100, default 20). |
+| `GET` | `/api/uptime?range=` | Uptime for `24h` (default), `7d`, `30d` or `90d`. |
 | `GET`, `PUT` | `/api/alerts/rule` | Read or save the alert rule and its transition counts. |
 | `GET`, `PUT` | `/api/notifications` | Read or save the ntfy and webhook configuration. |
 | `POST` | `/api/notifications/test` | Send a test notification to a saved or draft destination. |
