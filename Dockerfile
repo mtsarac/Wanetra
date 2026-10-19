@@ -19,7 +19,7 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     WANETRA_PORT=8080
 # hadolint ignore=DL3008
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 ARG TARGETARCH
 ARG LIBRESPEED_CLI_VERSION=1.0.14

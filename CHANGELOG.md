@@ -4,6 +4,12 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-19
+
+### Fixed
+
+- Ping probes always fell back to TCP checks in the Docker image, because .NET pings through the system `ping` utility when it has no raw-socket privilege and the image did not contain one. The image now includes `iputils-ping`.
+
 ## [0.4.0] - 2026-10-19
 
 ### Added
@@ -163,7 +169,8 @@ Includes everything since the initial repository bootstrap; earlier pre-release 
 - Dependency review now blocks high-severity dependency changes, CodeQL uploads results, and Dependabot tracks the Bun lockfile.
 - GitHub Releases are marked Latest when their tag is the highest SemVer release on `main`; backports to older lines are not.
 
-[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/mtsarac/Wanetra/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mtsarac/Wanetra/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/mtsarac/Wanetra/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/mtsarac/Wanetra/releases/tag/v0.3.0

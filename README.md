@@ -177,7 +177,7 @@ Every probe is stored for 48 hours, summarized per minute for 30 days and per ho
 
 ### Ping inside Docker
 
-Wanetra runs as a non-root user. Ping works without extra privileges when the kernel lets that user open ICMP sockets, which the Compose files allow with `net.ipv4.ping_group_range`. If ICMP is still not available, Wanetra logs a warning and falls back to TCP checks on ports 443 and 80, where a connection or a reset both count as "reachable". Under bridge networking the detected gateway is the Docker bridge address of the host, not your router.
+Wanetra runs as a non-root user and pings with the `ping` utility in the image, which works when the kernel lets that user open ICMP sockets. The Compose files allow it with `net.ipv4.ping_group_range`; with host networking (`compose.lan.yaml`) a container cannot set that sysctl, so set it on the host. If ICMP is still not available, Wanetra logs a warning and falls back to TCP checks on ports 443 and 80, where a connection or a reset both count as "reachable". Under bridge networking the detected gateway is the Docker bridge address of the host, not your router.
 
 ## Local network scanning
 

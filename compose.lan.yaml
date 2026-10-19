@@ -5,6 +5,9 @@
 # With host networking the container has no port mapping: Wanetra listens on
 # WANETRA_BIND_ADDRESS:WANETRA_PORT of the host itself. Keep it on 127.0.0.1 unless you
 # need the UI from another machine, and read "Security" in the README before you change that.
+#
+# A container on the host network cannot set sysctls, so for ICMP ping probes set
+# net.ipv4.ping_group_range on the host itself (see "Ping inside Docker" in the README).
 services:
   wanetra:
     image: ghcr.io/mtsarac/wanetra:${WANETRA_VERSION:-latest}
