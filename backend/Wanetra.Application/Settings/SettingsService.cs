@@ -182,7 +182,43 @@ public sealed class SettingsService(
             }
         }
 
+        ValidateLanNetworks(result, changedKeys);
+
         return result;
+    }
+
+    private static void ValidateLanNetworks(Dictionary<string, EffectiveSetting> result, HashSet<string>? changedKeys)
+    {
+        if (result[SettingKeys.LanCidr].Value is not string networks)
+        {
+            return;
+        }
+
+        foreach (var part in networks.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            string? problem = null;
+            if (!Lan.CidrRange.TryParse(part, out var range))
+            {
+                problem = $"'{part}' is not a network in CIDR notation, for example 192.168.1.0/24.";
+            }
+            else
+            {
+                problem = range.Problem();
+            }
+
+            if (problem is null)
+            {
+                continue;
+            }
+
+            if (changedKeys is null)
+            {
+                var variable = SettingDefinitions.Find(SettingKeys.LanCidr)!.EnvironmentVariable;
+                throw new InvalidOperationException($"{variable}: {problem}");
+            }
+
+            throw new SettingsException(SettingsErrorKind.InvalidSetting, SettingKeys.LanCidr, $"{SettingKeys.LanCidr}: {problem}");
+        }
     }
 
     private static object? ParseJsonValue(SettingDefinition def, JsonElement element)

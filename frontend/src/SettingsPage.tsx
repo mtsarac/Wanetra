@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
+import { SecuritySection } from './auth/SecuritySection'
 import { api } from './lib/api'
 import ScheduleSettings from './ScheduleSettings'
 import { AppearanceSection } from './settings/AppearanceSection'
+import { LanSection } from './settings/LanSection'
+import { ProbesSection } from './settings/ProbesSection'
 import { RetentionSection } from './settings/RetentionSection'
 import { SpeedTestSection } from './settings/SpeedTestSection'
 import './settings/settings.css'
@@ -40,6 +43,8 @@ export default function SettingsPage() {
         <>
           <SpeedTestSection settings={settingsQuery.data.settings} />
           <ScheduleSettings />
+          <ProbesSection settings={settingsQuery.data.settings} />
+          <LanSection settings={settingsQuery.data.settings} />
           <RetentionSection settings={settingsQuery.data.settings} />
         </>
       )}
@@ -47,6 +52,8 @@ export default function SettingsPage() {
       {!settingsQuery.data?.settings && !settingsQuery.isLoading && (
         <ScheduleSettings />
       )}
+
+      <SecuritySection />
 
       <AppearanceSection />
     </main>

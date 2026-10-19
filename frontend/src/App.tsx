@@ -7,6 +7,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, getHistory, type MetricBaseline, type SpeedTestResult } from './lib/api'
 import { Button } from './components/ui/button'
+import { ConnectionSummary } from './connectivity/ConnectionSummary'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
@@ -284,6 +285,7 @@ function App() {
           </div>
         </section>
       )}
+      <ConnectionSummary />
       <section className="metrics" aria-label="Key connection metrics">
         <Metric label="Download" value={formatNumber(latest.data?.downloadMbps, 'Mbps')} tone="blue" />
         <Metric label="Upload" value={formatNumber(latest.data?.uploadMbps, 'Mbps')} tone="green" />

@@ -386,7 +386,7 @@ describe('SettingsPage', () => {
     expect(execInput.readOnly).toBe(true)
 
     expect(
-      screen.getByText(/Executable paths can only be set with environment variables \(SPEEDTEST__LIBRESPEED__EXECUTABLEPATH\) until authentication is available/),
+      screen.getByText(/Executable paths can only be set with the environment variable SPEEDTEST__LIBRESPEED__EXECUTABLEPATH/),
     ).toBeTruthy()
   })
 

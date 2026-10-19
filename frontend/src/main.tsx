@@ -4,9 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import '@fontsource-variable/jetbrains-mono'
 import { applyTheme, readTheme } from './lib/theme'
+import AuthGate from './auth/AuthGate'
 import AlertSettings from './AlertSettings'
 import App from './App.tsx'
 import AppShell from './AppShell'
+import ConnectivityPage from './connectivity/ConnectivityPage'
+import DevicesPage from './devices/DevicesPage'
 import HistoryPage from './HistoryPage'
 import NotificationsPanel from './Notifications'
 import SettingsPage from './SettingsPage'
@@ -28,6 +31,8 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <App /> },
+      { path: 'connectivity', element: <ConnectivityPage /> },
+      { path: 'devices', element: <DevicesPage /> },
       { path: 'history', element: <HistoryPage /> },
       { path: 'alerts', element: <AlertSettings /> },
       { path: 'notifications', element: <NotificationsPanel /> },
@@ -40,7 +45,9 @@ const router = createBrowserRouter([
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AuthGate>
+        <RouterProvider router={router} />
+      </AuthGate>
     </QueryClientProvider>
   </StrictMode>,
 )

@@ -4,10 +4,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wanetra.Application.Lan;
 using Wanetra.Application.Notifications;
+using Wanetra.Application.Probes;
 using Wanetra.Application.Settings;
 using Wanetra.Domain;
+using Wanetra.Infrastructure.Lan;
 using Wanetra.Infrastructure.Persistence;
+using Wanetra.Infrastructure.Probes;
 using Wanetra.Infrastructure.Processes;
 using Wanetra.Infrastructure.SpeedTests;
 
@@ -32,10 +36,19 @@ public static class DependencyInjection
         services.AddScoped<IAlertStateRepository, AlertStateRepository>();
         services.AddScoped<INotificationConfigurationRepository, NotificationConfigurationRepository>();
         services.AddScoped<IAppSettingRepository, AppSettingRepository>();
+        services.AddScoped<IAuthRepository, AuthRepository>();
+        services.AddScoped<IProbeRepository, ProbeRepository>();
+        services.AddScoped<IOutageRepository, OutageRepository>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddHttpClient<NtfyNotificationProvider>();
         services.AddHttpClient<WebhookNotificationProvider>();
 
         services.AddSingleton<IProcessRunner, ProcessRunner>();
+        services.AddSingleton<IProbeExecutor, NetworkProbeExecutor>();
+        services.AddSingleton<IGatewayDetector, LinuxGatewayDetector>();
+        services.AddSingleton<ILanNetworkDetector, LanNetworkDetector>();
+        services.AddSingleton<ILanScanner, NetworkLanScanner>();
+        services.AddSingleton<IOuiLookup, EmbeddedOuiDatabase>();
 
         // Always register the Ookla installer typed client (30 s timeout)
         services.AddHttpClient<IOoklaBinary, OoklaBinaryInstaller>((httpClient, provider) => new OoklaBinaryInstaller(

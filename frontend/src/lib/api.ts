@@ -97,7 +97,7 @@ export type DegradationEvent = {
 }
 
 export type SettingType = 'choice' | 'integer' | 'boolean' | 'text'
-export type SettingGroup = 'speedtest' | 'retention'
+export type SettingGroup = 'speedtest' | 'retention' | 'probes' | 'lan'
 export type SettingSource = 'default' | 'stored' | 'environment'
 export type SettingLockReason = 'environment' | 'restricted'
 
@@ -172,32 +172,252 @@ export type NotificationConfigurationList = {
 }
 export type NotificationTestTarget = { id: number } | { provider: string; configurationJson: string }
 
-type ApiError = { message?: string }
+export type ProbeKind = 'icmp' | 'tcp' | 'dns' | 'http'
+export type ProbeRole = 'gateway' | 'internet' | 'dns' | 'custom'
+
+export type ProbeTarget = {
+  id: number
+  name: string
+  kind: ProbeKind
+  role: ProbeRole
+  target: string | null
+  port: number | null
+  resolver: string | null
+  enabled: boolean
+  createdAt: string
+  deviceId: number | null
+}
+
+export type ProbeTargetInput = Omit<ProbeTarget, 'id' | 'createdAt' | 'deviceId'>
+
+export type LayerState = 'up' | 'down' | 'unknown'
+export type OutageScope = 'localNetwork' | 'wan' | 'dns'
+export type ConnectivityState = 'healthy' | 'degraded' | 'outage' | 'unknown' | 'disabled'
+
+export type ProbeTargetStatus = {
+  target: ProbeTarget
+  up: boolean | null
+  rttMs: number | null
+  checkedAt: string | null
+  lossPercent: number | null
+  avgRttMs: number | null
+  error: string | null
+}
+
+export type Outage = {
+  id: number
+  startedAt: string
+  endedAt: string | null
+  status: 'active' | 'recovered'
+  scope: OutageScope
+  reason: string
+  closureReason: string | null
+  durationSeconds: number
+  notificationSent: boolean
+  recoveryNotificationSent: boolean
+  notificationDeliveries: NotificationDelivery[]
+}
+
+export type ConnectivityStatus = {
+  monitoring: boolean
+  intervalSeconds: number
+  state: ConnectivityState
+  layers: { gateway: LayerState; internet: LayerState; dns: LayerState }
+  scope: OutageScope | null
+  reason: string | null
+  lastCheckedAt: string | null
+  targets: ProbeTargetStatus[]
+  activeOutage: Outage | null
+}
+
+export type ProbePoint = {
+  timestamp: string
+  rttMs: number | null
+  rttMinMs: number | null
+  rttMaxMs: number | null
+  jitterMs: number | null
+  lossPercent: number
+  sent: number
+}
+
+export type ProbeSeries = {
+  targetId: number
+  resolution: 'raw' | 'minute' | 'hour'
+  from: string
+  to: string
+  points: ProbePoint[]
+}
+
+export type UptimeRange = '24h' | '7d' | '30d' | '90d'
+
+export type Uptime = {
+  range: UptimeRange
+  from: string
+  to: string
+  uptimePercent: number
+  outageCount: number
+  totalOutageSeconds: number
+  longestOutageSeconds: number
+  coversFullRange: boolean
+}
+
+export type Device = {
+  id: number
+  mac: string
+  ip: string | null
+  displayName: string
+  name: string | null
+  hostname: string | null
+  description: string | null
+  vendor: string | null
+  known: boolean
+  watch: boolean
+  online: boolean
+  randomizedMac: boolean
+  firstSeenAt: string
+  lastSeenAt: string
+  lastStateChangeAt: string
+}
+
+export type DeviceUpdate = { name?: string; known?: boolean; watch?: boolean }
+
+export type DeviceEvent = {
+  id: number
+  deviceId: number
+  timestamp: string
+  type: 'joined' | 'online' | 'offline' | 'ipChanged'
+  detail: string | null
+}
+
+export type ScanRun = {
+  startedAt: string
+  finishedAt: string
+  networks: string
+  hostsFound: number
+  success: boolean
+  error: string | null
+  trigger: string
+}
+
+export type LanStatus = {
+  enabled: boolean
+  scanning: boolean
+  nextScanAt: string | null
+  lastScan: ScanRun | null
+  totalDevices: number
+  onlineDevices: number
+  unknownDevices: number
+  networks: string[]
+  onlyContainerNetworks: boolean
+}
+
+type ApiError = { code?: string; message?: string }
+
+export const UNAUTHORIZED_EVENT = 'wanetra:unauthorized'
+const CSRF_HEADER = 'X-Wanetra-Request'
+
+export class ApiRequestError extends Error {
+  readonly status: number
+  readonly code: string | null
+
+  constructor(message: string, status: number, code: string | null) {
+    super(message)
+    this.name = 'ApiRequestError'
+    this.status = status
+    this.code = code
+  }
+}
+
+export type AuthStatus = {
+  authEnabled: boolean
+  envLocked: boolean
+  setupRequired: boolean
+  accountExists: boolean
+  authenticated: boolean
+  username: string | null
+  metricsTokenConfigured: boolean
+}
+
+async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  const method = init?.method?.toUpperCase() ?? 'GET'
+  const headers = new Headers(init?.headers)
+  if (method !== 'GET' && method !== 'HEAD') headers.set(CSRF_HEADER, '1')
+
+  const response = await fetch(url, { ...init, headers })
+  if (response.status === 401 && !url.startsWith('/api/auth/')) {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+  }
+  return response
+}
+
+async function failure(response: Response): Promise<ApiRequestError> {
+  const body = await response.json().catch(() => null) as ApiError | null
+  return new ApiRequestError(body?.message ?? `Request failed (${response.status})`, response.status, body?.code ?? null)
+}
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init)
+  const response = await apiFetch(url, init)
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as ApiError | null
-    throw new Error(body?.message ?? `Request failed (${response.status})`)
-  }
+  if (!response.ok) throw await failure(response)
 
   if (response.status === 204) return undefined as T
   const body = await response.text()
   return body.trim() === '' ? undefined as T : JSON.parse(body) as T
 }
 
+function sendJson<T>(method: 'POST' | 'PUT', url: string, body?: unknown): Promise<T> {
+  return request<T>(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+const postJson = <T>(url: string, body?: unknown) => sendJson<T>('POST', url, body)
+
 async function getLatest(): Promise<SpeedTestResult | null> {
-  const response = await fetch('/api/speedtests/latest')
+  const response = await apiFetch('/api/speedtests/latest')
   if (response.status === 404) return null
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as ApiError | null
-    throw new Error(body?.message ?? `Request failed (${response.status})`)
-  }
+  if (!response.ok) throw await failure(response)
   return response.json() as Promise<SpeedTestResult>
 }
 
 export const api = {
+  getLanStatus: () => request<LanStatus>('/api/lan/status'),
+  startLanScan: () => postJson<{ status: string }>('/api/lan/scan'),
+  getDevices: () => request<Device[]>('/api/devices'),
+  updateDevice: (id: number, update: DeviceUpdate) => sendJson<Device>('PUT', `/api/devices/${id}`, update),
+  deleteDevice: (id: number) => request<void>(`/api/devices/${id}`, { method: 'DELETE' }),
+  markAllDevicesKnown: () => postJson<{ updated: number }>('/api/devices/mark-all-known'),
+  getDeviceEvents: (id: number, count = 20) => request<DeviceEvent[]>(`/api/devices/${id}/events?count=${count}`),
+  getConnectivity: () => request<ConnectivityStatus>('/api/probes/status'),
+  getProbeTargets: () => request<ProbeTarget[]>('/api/probes/targets'),
+  createProbeTarget: (input: ProbeTargetInput) => postJson<ProbeTarget>('/api/probes/targets', input),
+  updateProbeTarget: (id: number, input: ProbeTargetInput) =>
+    sendJson<ProbeTarget>('PUT', `/api/probes/targets/${id}`, input),
+  deleteProbeTarget: (id: number) => request<void>(`/api/probes/targets/${id}`, { method: 'DELETE' }),
+  getProbeSeries: (targetId: number, from: Date, to: Date) => {
+    const params = new URLSearchParams({
+      targetId: String(targetId),
+      from: from.toISOString(),
+      to: to.toISOString(),
+    })
+    return request<ProbeSeries>(`/api/probes/series?${params}`)
+  },
+  getOutages: (count = 20) => request<Outage[]>(`/api/outages?count=${count}`),
+  getUptime: (range: UptimeRange) => request<Uptime>(`/api/uptime?range=${range}`),
+  getAuthStatus: () => request<AuthStatus>('/api/auth/status'),
+  setupAuth: (setupCode: string, username: string, password: string) =>
+    postJson<AuthStatus>('/api/auth/setup', { setupCode, username, password }),
+  login: (username: string, password: string) =>
+    postJson<AuthStatus>('/api/auth/login', { username, password }),
+  logout: () => postJson<void>('/api/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    postJson<void>('/api/auth/change-password', { currentPassword, newPassword }),
+  disableAuth: (password: string) => postJson<void>('/api/auth/disable', { password }),
+  enableAuth: () => postJson<void>('/api/auth/enable'),
+  createMetricsToken: () => postJson<{ token: string }>('/api/auth/metrics-token'),
+  revokeMetricsToken: () => request<void>('/api/auth/metrics-token', { method: 'DELETE' }),
   getLatest,
   getStatus: () => request<SpeedTestStatus>('/api/speedtests/status'),
   getSchedule: () => request<Schedule>('/api/schedule'),
@@ -216,9 +436,9 @@ export const api = {
       body: JSON.stringify({ values }),
     }),
   getAlertRule: async () => {
-    const response = await fetch('/api/alerts/rule')
+    const response = await apiFetch('/api/alerts/rule')
     if (response.status === 404) return null
-    if (!response.ok) throw new Error(`Request failed (${response.status})`)
+    if (!response.ok) throw await failure(response)
     return response.json() as Promise<AlertRule>
   },
   saveAlertRule: (rule: AlertRuleUpdate) =>
@@ -228,9 +448,9 @@ export const api = {
       body: JSON.stringify(rule),
     }),
   getActiveAlert: async () => {
-    const response = await fetch('/api/alerts/active')
+    const response = await apiFetch('/api/alerts/active')
     if (response.status === 404) return null
-    if (!response.ok) throw new Error(`Request failed (${response.status})`)
+    if (!response.ok) throw await failure(response)
     return response.json() as Promise<ActiveAlert>
   },
   getDegradationEvents: (count = 20) => request<DegradationEvent[]>(`/api/alerts/events?count=${count}`),

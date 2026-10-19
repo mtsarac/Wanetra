@@ -1,6 +1,6 @@
 namespace Wanetra.Domain;
 
-public class DegradationEvent
+public class DegradationEvent : INotifiableEvent
 {
     public long Id { get; set; }
     public DateTime StartedAt { get; set; }
@@ -27,4 +27,15 @@ public class DegradationEvent
     public bool OpenedDeliveryInitialized { get; set; }
     public bool RecoveryDeliveryInitialized { get; set; }
     public List<NotificationDelivery> NotificationDeliveries { get; set; } = [];
+
+    public bool IsRecovered => Status == DegradationStatus.Recovered;
+
+    IList<NotificationDelivery> INotifiableEvent.Deliveries => NotificationDeliveries;
+
+    void INotifiableEvent.Attach(NotificationDelivery delivery)
+    {
+        delivery.DegradationEventId = Id;
+        delivery.OutageId = null;
+        delivery.DeviceAlertId = null;
+    }
 }

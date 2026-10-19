@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
+import { useAuth } from './auth/AuthContext'
 
 const navigation = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/connectivity', label: 'Connectivity' },
+  { to: '/devices', label: 'Devices' },
   { to: '/history', label: 'History' },
   { to: '/alerts', label: 'Alerts' },
   { to: '/notifications', label: 'Notifications' },
@@ -11,6 +14,8 @@ const navigation = [
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard · Wanetra',
+  '/connectivity': 'Connectivity · Wanetra',
+  '/devices': 'Devices · Wanetra',
   '/history': 'History · Wanetra',
   '/alerts': 'Alerts · Wanetra',
   '/notifications': 'Notifications · Wanetra',
@@ -19,6 +24,7 @@ const pageTitles: Record<string, string> = {
 
 export default function AppShell() {
   const location = useLocation()
+  const auth = useAuth()
   const previousPathname = useRef<string | null>(null)
 
   // Meaningful <title> per route + screen-reader focus shift on navigation
@@ -62,6 +68,11 @@ export default function AppShell() {
         <nav aria-label="Main navigation">
           {navigation.map(({ to, label, end }) => <NavLink key={to} to={to} end={end}>{label}</NavLink>)}
         </nav>
+        {auth?.status.authEnabled && (
+          <button type="button" className="signout-btn" onClick={auth.signOut}>
+            Sign out{auth.status.username ? ` (${auth.status.username})` : ''}
+          </button>
+        )}
       </header>
       <Outlet />
     </div>

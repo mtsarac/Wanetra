@@ -23,6 +23,18 @@ public sealed class NotificationDispatcher(
             {
                 await DispatchEventAsync(degradationEvent, cancellationToken);
             }
+
+            var pendingOutages = await alertRepository.GetPendingNotificationOutagesAsync(cancellationToken);
+            foreach (var outage in pendingOutages)
+            {
+                await DispatchEventAsync(outage, cancellationToken);
+            }
+
+            var pendingDeviceAlerts = await alertRepository.GetPendingNotificationDeviceAlertsAsync(cancellationToken);
+            foreach (var deviceAlert in pendingDeviceAlerts)
+            {
+                await DispatchEventAsync(deviceAlert, cancellationToken);
+            }
         }
         finally
         {
@@ -42,21 +54,47 @@ public sealed class NotificationDispatcher(
                 return;
             }
 
-            await EnsureSnapshotAsync(degradationEvent, trigger, cancellationToken);
-            if (trigger == NotificationTrigger.Opened)
+            await DispatchTriggerAsync(degradationEvent, trigger, cancellationToken);
+        }
+        finally
+        {
+            DispatchGate.Release();
+        }
+    }
+
+    public async Task DispatchOutageAsync(NotificationTrigger trigger, long outageId, CancellationToken cancellationToken)
+    {
+        await DispatchGate.WaitAsync(cancellationToken);
+        try
+        {
+            var outage = await alertRepository.GetOutageAsync(outageId, cancellationToken);
+            if (outage is null)
             {
-                foreach (var delivery in Deliveries(degradationEvent, NotificationTrigger.Opened))
-                {
-                    await DispatchDeliveryAsync(degradationEvent, delivery, cancellationToken);
-                }
+                logger.LogError("Notification skipped: outage {EventId} not found", outageId);
+                return;
             }
-            else
+
+            await DispatchTriggerAsync(outage, trigger, cancellationToken);
+        }
+        finally
+        {
+            DispatchGate.Release();
+        }
+    }
+
+    public async Task DispatchDeviceAlertAsync(NotificationTrigger trigger, long alertId, CancellationToken cancellationToken)
+    {
+        await DispatchGate.WaitAsync(cancellationToken);
+        try
+        {
+            var alert = await alertRepository.GetDeviceAlertAsync(alertId, cancellationToken);
+            if (alert is null)
             {
-                foreach (var delivery in Deliveries(degradationEvent, NotificationTrigger.Recovered))
-                {
-                    await DispatchDeliveryAsync(degradationEvent, delivery, cancellationToken);
-                }
+                logger.LogError("Notification skipped: device alert {EventId} not found", alertId);
+                return;
             }
+
+            await DispatchTriggerAsync(alert, trigger, cancellationToken);
         }
         finally
         {
@@ -76,30 +114,30 @@ public sealed class NotificationDispatcher(
         await provider.SendAsync(NotificationMessageBuilder.Test(provider.Name), configurationJson, cancellationToken);
     }
 
-    private async Task DispatchEventAsync(DegradationEvent degradationEvent, CancellationToken cancellationToken)
+    private async Task DispatchEventAsync(INotifiableEvent notifiable, CancellationToken cancellationToken)
     {
-        await EnsureSnapshotAsync(degradationEvent, NotificationTrigger.Opened, cancellationToken);
-        foreach (var delivery in Deliveries(degradationEvent, NotificationTrigger.Opened))
+        await EnsureSnapshotAsync(notifiable, NotificationTrigger.Opened, cancellationToken);
+        foreach (var delivery in Deliveries(notifiable, NotificationTrigger.Opened))
         {
-            await DispatchDeliveryAsync(degradationEvent, delivery, cancellationToken);
+            await DispatchDeliveryAsync(notifiable, delivery, cancellationToken);
         }
 
-        if (degradationEvent.Status == DegradationStatus.Recovered)
+        if (notifiable.IsRecovered)
         {
-            await EnsureSnapshotAsync(degradationEvent, NotificationTrigger.Recovered, cancellationToken);
-            foreach (var delivery in Deliveries(degradationEvent, NotificationTrigger.Recovered))
+            await EnsureSnapshotAsync(notifiable, NotificationTrigger.Recovered, cancellationToken);
+            foreach (var delivery in Deliveries(notifiable, NotificationTrigger.Recovered))
             {
-                await DispatchDeliveryAsync(degradationEvent, delivery, cancellationToken);
+                await DispatchDeliveryAsync(notifiable, delivery, cancellationToken);
             }
         }
     }
 
     private async Task EnsureSnapshotAsync(
-        DegradationEvent degradationEvent,
+        INotifiableEvent notifiable,
         NotificationTrigger trigger,
         CancellationToken cancellationToken)
     {
-        if (IsSnapshotInitialized(degradationEvent, trigger))
+        if (IsSnapshotInitialized(notifiable, trigger))
         {
             return;
         }
@@ -110,10 +148,9 @@ public sealed class NotificationDispatcher(
             var configurations = await configurationRepository.ListAsync(cancellationToken);
             foreach (var configuration in configurations.Where(configuration => configuration.Enabled).OrderBy(configuration => configuration.Id))
             {
-                var alreadySent = degradationEvent.NotificationSent;
-                alertRepository.AddNotificationDelivery(new NotificationDelivery
+                var alreadySent = notifiable.NotificationSent;
+                AddDelivery(notifiable, new NotificationDelivery
                 {
-                    DegradationEventId = degradationEvent.Id,
                     Trigger = NotificationTrigger.Opened,
                     ConfigurationId = configuration.Id,
                     Provider = configuration.Provider,
@@ -124,17 +161,16 @@ public sealed class NotificationDispatcher(
                 });
             }
 
-            degradationEvent.OpenedDeliveryInitialized = true;
+            notifiable.OpenedDeliveryInitialized = true;
         }
         else
         {
-            await EnsureSnapshotAsync(degradationEvent, NotificationTrigger.Opened, cancellationToken);
-            foreach (var openedDelivery in Deliveries(degradationEvent, NotificationTrigger.Opened))
+            await EnsureSnapshotAsync(notifiable, NotificationTrigger.Opened, cancellationToken);
+            foreach (var openedDelivery in Deliveries(notifiable, NotificationTrigger.Opened))
             {
-                var alreadySent = degradationEvent.RecoveryNotificationSent;
-                alertRepository.AddNotificationDelivery(new NotificationDelivery
+                var alreadySent = notifiable.RecoveryNotificationSent;
+                AddDelivery(notifiable, new NotificationDelivery
                 {
-                    DegradationEventId = degradationEvent.Id,
                     Trigger = NotificationTrigger.Recovered,
                     ConfigurationId = openedDelivery.ConfigurationId,
                     Provider = openedDelivery.Provider,
@@ -145,15 +181,15 @@ public sealed class NotificationDispatcher(
                 });
             }
 
-            degradationEvent.RecoveryDeliveryInitialized = true;
+            notifiable.RecoveryDeliveryInitialized = true;
         }
 
-        UpdateSentFlags(degradationEvent);
+        UpdateSentFlags(notifiable);
         await alertRepository.SaveChangesAsync(cancellationToken);
     }
 
     private async Task DispatchDeliveryAsync(
-        DegradationEvent degradationEvent,
+        INotifiableEvent notifiable,
         NotificationDelivery delivery,
         CancellationToken cancellationToken)
     {
@@ -164,12 +200,12 @@ public sealed class NotificationDispatcher(
 
         if (delivery.Trigger == NotificationTrigger.Recovered)
         {
-            var openedDelivery = Deliveries(degradationEvent, NotificationTrigger.Opened)
+            var openedDelivery = Deliveries(notifiable, NotificationTrigger.Opened)
                 .SingleOrDefault(opened => opened.ConfigurationId == delivery.ConfigurationId);
             if (openedDelivery is null || openedDelivery.Status == NotificationDeliveryStatus.Skipped)
             {
                 Skip(delivery, "opening notification was not delivered");
-                UpdateSentFlags(degradationEvent);
+                UpdateSentFlags(notifiable);
                 await alertRepository.SaveChangesAsync(cancellationToken);
                 return;
             }
@@ -185,7 +221,7 @@ public sealed class NotificationDispatcher(
         if (configuration is null || !configuration.Enabled)
         {
             Skip(delivery, "configuration disabled or removed");
-            UpdateSentFlags(degradationEvent);
+            UpdateSentFlags(notifiable);
             await alertRepository.SaveChangesAsync(cancellationToken);
             return;
         }
@@ -195,7 +231,7 @@ public sealed class NotificationDispatcher(
         if (provider is null)
         {
             Skip(delivery, "provider unavailable");
-            UpdateSentFlags(degradationEvent);
+            UpdateSentFlags(notifiable);
             await alertRepository.SaveChangesAsync(cancellationToken);
             return;
         }
@@ -205,7 +241,7 @@ public sealed class NotificationDispatcher(
         try
         {
             await provider.SendAsync(
-                NotificationMessageBuilder.Build(delivery.Trigger, degradationEvent),
+                BuildMessage(delivery.Trigger, notifiable),
                 configuration.ConfigurationJson,
                 cancellationToken);
             delivery.Status = NotificationDeliveryStatus.Delivered;
@@ -222,24 +258,51 @@ public sealed class NotificationDispatcher(
             logger.LogWarning(
                 "Notification via {Provider} failed for event {EventId} ({FailureType})",
                 delivery.Provider,
-                degradationEvent.Id,
+                notifiable.Id,
                 exception.GetType().Name);
         }
 
-        UpdateSentFlags(degradationEvent);
+        UpdateSentFlags(notifiable);
         await alertRepository.SaveChangesAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<NotificationDelivery> Deliveries(DegradationEvent degradationEvent, NotificationTrigger trigger) =>
-        degradationEvent.NotificationDeliveries
+    private async Task DispatchTriggerAsync(
+        INotifiableEvent notifiable,
+        NotificationTrigger trigger,
+        CancellationToken cancellationToken)
+    {
+        await EnsureSnapshotAsync(notifiable, trigger, cancellationToken);
+        foreach (var delivery in Deliveries(notifiable, trigger))
+        {
+            await DispatchDeliveryAsync(notifiable, delivery, cancellationToken);
+        }
+    }
+
+    private void AddDelivery(INotifiableEvent notifiable, NotificationDelivery delivery)
+    {
+        notifiable.Attach(delivery);
+        alertRepository.AddNotificationDelivery(delivery);
+    }
+
+    private static NotificationMessage BuildMessage(NotificationTrigger trigger, INotifiableEvent notifiable) =>
+        notifiable switch
+        {
+            DegradationEvent degradationEvent => NotificationMessageBuilder.Build(trigger, degradationEvent),
+            Outage outage => NotificationMessageBuilder.Build(trigger, outage),
+            DeviceAlert deviceAlert => NotificationMessageBuilder.Build(trigger, deviceAlert),
+            _ => throw new ArgumentOutOfRangeException(nameof(notifiable), notifiable.GetType(), null),
+        };
+
+    private static IReadOnlyList<NotificationDelivery> Deliveries(INotifiableEvent notifiable, NotificationTrigger trigger) =>
+        notifiable.Deliveries
             .Where(delivery => delivery.Trigger == trigger)
             .OrderBy(delivery => delivery.ConfigurationId)
             .ToList();
 
-    private static bool IsSnapshotInitialized(DegradationEvent degradationEvent, NotificationTrigger trigger) =>
+    private static bool IsSnapshotInitialized(INotifiableEvent notifiable, NotificationTrigger trigger) =>
         trigger == NotificationTrigger.Opened
-            ? degradationEvent.OpenedDeliveryInitialized
-            : degradationEvent.RecoveryDeliveryInitialized;
+            ? notifiable.OpenedDeliveryInitialized
+            : notifiable.RecoveryDeliveryInitialized;
 
     private static void Skip(NotificationDelivery delivery, string reason)
     {
@@ -253,10 +316,10 @@ public sealed class NotificationDispatcher(
         return summary.Length <= MaxErrorSummaryLength ? summary : summary[..MaxErrorSummaryLength];
     }
 
-    private static void UpdateSentFlags(DegradationEvent degradationEvent)
+    private static void UpdateSentFlags(INotifiableEvent notifiable)
     {
-        degradationEvent.NotificationSent = AllDelivered(Deliveries(degradationEvent, NotificationTrigger.Opened));
-        degradationEvent.RecoveryNotificationSent = AllDelivered(Deliveries(degradationEvent, NotificationTrigger.Recovered));
+        notifiable.NotificationSent = AllDelivered(Deliveries(notifiable, NotificationTrigger.Opened));
+        notifiable.RecoveryNotificationSent = AllDelivered(Deliveries(notifiable, NotificationTrigger.Recovered));
     }
 
     private static bool AllDelivered(IReadOnlyList<NotificationDelivery> deliveries) =>

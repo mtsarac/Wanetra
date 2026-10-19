@@ -5,11 +5,17 @@ namespace Wanetra.Api.Tests;
 
 public class WanetraApiFactory : WebApplicationFactory<Program>
 {
+    // Existing suites exercise the API directly; auth suites override this with an empty value.
+    protected virtual string AuthSetting => "disabled";
+
     public string DataPath { get; } = Path.Combine(Path.GetTempPath(), $"wanetra-tests-{Guid.NewGuid():N}");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("WANETRA_DATA_PATH", DataPath);
+        builder.UseSetting("WANETRA_AUTH", AuthSetting);
+        // The probe loop would send real traffic from every test host; probe tests drive it by hand.
+        builder.UseSetting("Probes:Enabled", "false");
     }
 
     public override async ValueTask DisposeAsync()

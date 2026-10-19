@@ -16,8 +16,12 @@ public enum NotificationDeliveryStatus
 public sealed class NotificationDelivery
 {
     public long Id { get; set; }
-    public long DegradationEventId { get; set; }
+    public long? DegradationEventId { get; set; }
     public DegradationEvent? DegradationEvent { get; set; }
+    public long? OutageId { get; set; }
+    public Outage? Outage { get; set; }
+    public long? DeviceAlertId { get; set; }
+    public DeviceAlert? DeviceAlert { get; set; }
     public NotificationTrigger Trigger { get; set; }
     public int ConfigurationId { get; set; }
     public required string Provider { get; set; }

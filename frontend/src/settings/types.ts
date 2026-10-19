@@ -4,6 +4,21 @@ export const SPEEDTEST_ENGINE_KEY = 'speedtest.engine'
 export const OOKLA_ACCEPT_LICENSE_KEY = 'speedtest.ookla.acceptLicense'
 export const RETENTION_DAYS_KEY = 'retention.days'
 
+export const PROBES_ENABLED_KEY = 'probes.enabled'
+export const PROBE_INTEGER_KEYS = [
+  'probes.intervalSeconds',
+  'probes.timeoutMs',
+  'probes.outage.failuresRequired',
+  'probes.outage.recoveriesRequired',
+  'probes.retention.rawHours',
+  'probes.retention.minuteDays',
+] as const
+
+export const LAN_ENABLED_KEY = 'lan.enabled'
+export const LAN_ALERT_KEY = 'lan.alertOnNewDevice'
+export const LAN_CIDR_KEY = 'lan.cidr'
+export const LAN_INTEGER_KEYS = ['lan.scanIntervalMinutes', 'lan.offlineAfterScans'] as const
+
 export type EngineId = 'librespeed' | 'cloudflare' | 'ookla'
 
 export type EngineOption = {
@@ -84,6 +99,54 @@ export const FIELD_METAS: Record<string, FieldMeta> = {
   'speedtest.ookla.executablePath': {
     label: 'Executable path (fallback)',
     help: 'Optional fallback binary if Wanetra cannot download the official CLI directly.',
+  },
+  [PROBES_ENABLED_KEY]: {
+    label: 'Monitor the connection',
+    help: 'Probe the gateway, public IPs and DNS continuously and record outages.',
+  },
+  'probes.intervalSeconds': {
+    label: 'Check every (seconds)',
+    help: 'How often every target is probed.',
+  },
+  'probes.timeoutMs': {
+    label: 'Probe timeout (milliseconds)',
+    help: 'A probe that has not answered by then counts as lost.',
+  },
+  'probes.outage.failuresRequired': {
+    label: 'Bad checks before an outage opens',
+    help: 'Consecutive checks in which the internet (or DNS) is unreachable.',
+  },
+  'probes.outage.recoveriesRequired': {
+    label: 'Good checks before it closes',
+    help: 'Consecutive healthy checks needed to call the outage over.',
+  },
+  'probes.retention.rawHours': {
+    label: 'Keep every probe for (hours)',
+    help: 'Raw samples are summarized per minute and then deleted after this.',
+  },
+  'probes.retention.minuteDays': {
+    label: 'Keep per-minute summaries for (days)',
+    help: 'Hourly summaries and outages follow “Keep results for (days)” under measurement history.',
+  },
+  [LAN_ENABLED_KEY]: {
+    label: 'Scan the local network',
+    help: 'Find the devices on your LAN and keep an inventory. Needs host networking; see compose.lan.yaml.',
+  },
+  'lan.scanIntervalMinutes': {
+    label: 'Scan every (minutes)',
+    help: 'How often Wanetra looks for devices.',
+  },
+  [LAN_CIDR_KEY]: {
+    label: 'Networks to scan',
+    help: 'Comma-separated, for example 192.168.1.0/24. Empty detects the networks of this machine. Private ranges only, /22 or smaller.',
+  },
+  'lan.offlineAfterScans': {
+    label: 'Missed scans before a device is offline',
+    help: 'Phones sleep and miss scans; a higher number avoids false “offline” reports.',
+  },
+  [LAN_ALERT_KEY]: {
+    label: 'Alert when an unknown device joins',
+    help: 'Sends a notification the first time a device appears after the first scan.',
   },
   [RETENTION_DAYS_KEY]: {
     label: 'Keep results for (days)',
@@ -195,7 +258,7 @@ export function sourceText(setting: Setting): string {
 export function lockReasonText(setting: Setting): string | null {
   if (!setting.locked) return null
   if (setting.lockReason === 'restricted') {
-    return `Executable paths can only be set with environment variables (${setting.environmentVariable}) until authentication is available.`
+    return `Executable paths can only be set with the environment variable ${setting.environmentVariable}.`
   }
   return `Set by environment variable ${setting.environmentVariable}; remove it to change this here.`
 }

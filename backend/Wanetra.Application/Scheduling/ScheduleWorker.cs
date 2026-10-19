@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wanetra.Application.Probes;
 using Wanetra.Application.SpeedTests;
 
 namespace Wanetra.Application.Scheduling;
@@ -10,6 +11,7 @@ public sealed class ScheduleWorker(
     TimeProvider timeProvider,
     ScheduleChangeSignal changeSignal,
     SpeedTestCoordinator coordinator,
+    ConnectivityState connectivity,
     ILogger<ScheduleWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan MaxWait = TimeSpan.FromHours(24);
@@ -44,6 +46,13 @@ public sealed class ScheduleWorker(
             if (stoppingToken.IsCancellationRequested)
             {
                 break;
+            }
+
+            // A speed test during an outage only measures the outage, and its failure would count against the alert rule.
+            if (connectivity.OutageOpen)
+            {
+                logger.LogInformation("Scheduled speed test skipped because the connection is down");
+                continue;
             }
 
             try

@@ -15,7 +15,7 @@ namespace Wanetra.Infrastructure.Persistence.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.13");
 
             modelBuilder.Entity("Wanetra.Domain.AlertRule", b =>
                 {
@@ -113,6 +113,70 @@ namespace Wanetra.Infrastructure.Persistence.Migrations
                     b.ToTable("AppSettings");
                 });
 
+            modelBuilder.Entity("Wanetra.Domain.AuthAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AuthEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("MetricsTokenCreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MetricsTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AuthAccounts");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.AuthSession", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("AuthSessions");
+                });
+
             modelBuilder.Entity("Wanetra.Domain.DegradationEvent", b =>
                 {
                     b.Property<long>("Id")
@@ -187,6 +251,163 @@ namespace Wanetra.Infrastructure.Persistence.Migrations
                     b.ToTable("DegradationEvents");
                 });
 
+            modelBuilder.Entity("Wanetra.Domain.Device", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CurrentIp")
+                        .HasMaxLength(45)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Hostname")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Known")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastStateChangeAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mac")
+                        .IsRequired()
+                        .HasMaxLength(17)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MissedScans")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Online")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RandomizedMac")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Vendor")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Watch")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrentIp");
+
+                    b.HasIndex("Mac")
+                        .IsUnique();
+
+                    b.ToTable("Devices");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.DeviceAlert", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeviceLabel")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Ip")
+                        .HasMaxLength(45)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mac")
+                        .IsRequired()
+                        .HasMaxLength(17)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NotificationSent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("OpenedDeliveryInitialized")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RecoveryDeliveryInitialized")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RecoveryNotificationSent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Vendor")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId", "Kind", "Status");
+
+                    b.ToTable("DeviceAlerts");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.DeviceEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("DeviceId", "Timestamp");
+
+                    b.ToTable("DeviceEvents");
+                });
+
             modelBuilder.Entity("Wanetra.Domain.NotificationConfiguration", b =>
                 {
                     b.Property<int>("Id")
@@ -229,11 +450,14 @@ namespace Wanetra.Infrastructure.Persistence.Migrations
                     b.Property<int>("ConfigurationId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<long>("DegradationEventId")
+                    b.Property<long?>("DegradationEventId")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("DeviceAlertId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("LastAttemptAt")
                         .HasColumnType("TEXT");
@@ -241,6 +465,9 @@ namespace Wanetra.Infrastructure.Persistence.Migrations
                     b.Property<string>("LastErrorSummary")
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("OutageId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Provider")
                         .IsRequired()
@@ -262,7 +489,238 @@ namespace Wanetra.Infrastructure.Persistence.Migrations
                     b.HasIndex("DegradationEventId", "Trigger", "ConfigurationId")
                         .IsUnique();
 
+                    b.HasIndex("DeviceAlertId", "Trigger", "ConfigurationId")
+                        .IsUnique();
+
+                    b.HasIndex("OutageId", "Trigger", "ConfigurationId")
+                        .IsUnique();
+
                     b.ToTable("NotificationDeliveries");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.Outage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ClosureReason")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastObservedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NotificationSent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("OpenedDeliveryInitialized")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RecoveryDeliveryInitialized")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RecoveryNotificationSent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedAt");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Outages");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.ProbeRollup", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("BucketStart")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("JitterMs")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("Received")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Resolution")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("RttAvgMs")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("RttMaxMs")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("RttMinMs")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("Sent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TargetId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Resolution", "BucketStart");
+
+                    b.HasIndex("TargetId", "Resolution", "BucketStart")
+                        .IsUnique();
+
+                    b.ToTable("ProbeRollups");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.ProbeSample", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("DuringSpeedTest")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("RttMs")
+                        .HasColumnType("REAL");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TargetId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("TargetId", "Timestamp");
+
+                    b.ToTable("ProbeSamples");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.ProbeTarget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int?>("Port")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Resolver")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Target")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ProbeTargets");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.ScanRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FinishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HostsFound")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Networks")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedAt");
+
+                    b.ToTable("ScanRuns");
                 });
 
             modelBuilder.Entity("Wanetra.Domain.ScheduleSettings", b =>
@@ -362,18 +820,79 @@ namespace Wanetra.Infrastructure.Persistence.Migrations
                     b.ToTable("SpeedTestResults");
                 });
 
+            modelBuilder.Entity("Wanetra.Domain.DeviceAlert", b =>
+                {
+                    b.HasOne("Wanetra.Domain.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.DeviceEvent", b =>
+                {
+                    b.HasOne("Wanetra.Domain.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Wanetra.Domain.NotificationDelivery", b =>
                 {
                     b.HasOne("Wanetra.Domain.DegradationEvent", "DegradationEvent")
                         .WithMany("NotificationDeliveries")
                         .HasForeignKey("DegradationEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Wanetra.Domain.DeviceAlert", "DeviceAlert")
+                        .WithMany("NotificationDeliveries")
+                        .HasForeignKey("DeviceAlertId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Wanetra.Domain.Outage", "Outage")
+                        .WithMany("NotificationDeliveries")
+                        .HasForeignKey("OutageId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("DegradationEvent");
+
+                    b.Navigation("DeviceAlert");
+
+                    b.Navigation("Outage");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.ProbeRollup", b =>
+                {
+                    b.HasOne("Wanetra.Domain.ProbeTarget", null)
+                        .WithMany()
+                        .HasForeignKey("TargetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.ProbeSample", b =>
+                {
+                    b.HasOne("Wanetra.Domain.ProbeTarget", null)
+                        .WithMany()
+                        .HasForeignKey("TargetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Wanetra.Domain.DegradationEvent", b =>
+                {
+                    b.Navigation("NotificationDeliveries");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.DeviceAlert", b =>
+                {
+                    b.Navigation("NotificationDeliveries");
+                });
+
+            modelBuilder.Entity("Wanetra.Domain.Outage", b =>
                 {
                     b.Navigation("NotificationDeliveries");
                 });

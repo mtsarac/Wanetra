@@ -12,6 +12,10 @@ public interface IAlertStateRepository
     Task<DegradationEvent?> GetEventAsync(long id, CancellationToken cancellationToken);
     Task<IReadOnlyList<DegradationEvent>> GetRecentEventsAsync(int count, CancellationToken cancellationToken);
     Task<IReadOnlyList<DegradationEvent>> GetPendingNotificationEventsAsync(CancellationToken cancellationToken);
+    Task<Outage?> GetOutageAsync(long id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Outage>> GetPendingNotificationOutagesAsync(CancellationToken cancellationToken);
+    Task<DeviceAlert?> GetDeviceAlertAsync(long id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DeviceAlert>> GetPendingNotificationDeviceAlertsAsync(CancellationToken cancellationToken);
 
     void AddRule(AlertRule rule);
     void AddEvent(DegradationEvent degradationEvent);
