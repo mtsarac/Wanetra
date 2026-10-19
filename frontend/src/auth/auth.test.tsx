@@ -50,6 +50,7 @@ describe('AuthGate', () => {
     await userEvent.type(screen.getByLabelText('Confirm password'), 'a-long-password')
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
     await waitFor(() => expect(setup).toHaveBeenCalledWith('ABCD-EFGH-JKLM', 'admin', 'a-long-password'))
+    expect(await screen.findByText('dashboard')).toBeTruthy()
   })
 
   it('shows the sign-in form and reports bad credentials', async () => {
@@ -63,6 +64,18 @@ describe('AuthGate', () => {
 
     expect((await screen.findByRole('alert')).textContent).toBe('Invalid username or password.')
     expect(screen.queryByText('dashboard')).toBeNull()
+  })
+
+  it('opens the app right after a successful sign-in, without a reload', async () => {
+    vi.spyOn(api, 'getAuthStatus').mockResolvedValue({ ...signedIn, authenticated: false, username: null })
+    vi.spyOn(api, 'login').mockResolvedValue(signedIn)
+    renderWithClient(<AuthGate><p>dashboard</p></AuthGate>)
+
+    await userEvent.type(await screen.findByLabelText('Username'), 'owner')
+    await userEvent.type(screen.getByLabelText('Password'), 'right-password')
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('dashboard')).toBeTruthy()
   })
 
   it('returns to the sign-in form when any request reports an expired session', async () => {

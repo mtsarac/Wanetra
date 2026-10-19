@@ -14,7 +14,6 @@ export function SetupPage() {
   const setup = useMutation({
     mutationFn: () => api.setupAuth(setupCode, username, password),
     onSuccess: (status) => {
-      queryClient.clear()
       queryClient.setQueryData(['auth', 'status'], status)
     },
   })

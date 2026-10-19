@@ -11,7 +11,6 @@ export function LoginPage() {
   const login = useMutation({
     mutationFn: () => api.login(username, password),
     onSuccess: (status) => {
-      queryClient.clear()
       queryClient.setQueryData(['auth', 'status'], status)
     },
   })
