@@ -12,6 +12,7 @@ It is pre-1.0. The API and the database schema can still change between releases
 
 - Continuous connection monitoring: ping, TCP, DNS and HTTP probes of your gateway, public IPs and DNS, with outage detection that says whether the router, the ISP or DNS is at fault
 - Uptime over 24 hours, 7 days and 30 days, a latency and packet-loss chart, and an outage timeline
+- Local network inventory: finds the devices on your LAN, names them, flags unknown newcomers and watches the ones you care about (Linux hosts, opt-in)
 - Speed tests with one of three engines: LibreSpeed, Cloudflare, or Ookla
 - Manual runs and cron schedules with a timezone, one test at a time
 - History with filtering and paging, plus a seven-day rolling baseline
@@ -75,6 +76,8 @@ Common configuration variables:
 | `DataRetention__Days` | `365` | Days of speed-test history, hourly probe summaries and outages to keep |
 | `Probes__Enabled` | `true` | Turns connection monitoring on or off |
 | `Probes__IntervalSeconds` | `10` | Seconds between probe rounds (5 to 300) |
+| `Lan__Enabled` | `false` (`true` in `compose.lan.yaml`) | Turns local network scanning on or off |
+| `Lan__Cidr` | empty | Networks to scan, for example `192.168.1.0/24`. Empty detects this machine's networks |
 | `SpeedTest__Engine` | `librespeed` | Active engine: `librespeed`, `cloudflare`, or `ookla` |
 | `SpeedTest__Ookla__AcceptLicense` | `false` | Required for `ookla`. Read [Ookla and its license](#ookla-and-its-license) first |
 | `SpeedTest__Ookla__ExecutablePath` | empty | Optional fallback binary for `ookla` |
@@ -176,6 +179,39 @@ Every probe is stored for 48 hours, summarized per minute for 30 days and per ho
 
 Wanetra runs as a non-root user. Ping works without extra privileges when the kernel lets that user open ICMP sockets, which the Compose files allow with `net.ipv4.ping_group_range`. If ICMP is still not available, Wanetra logs a warning and falls back to TCP checks on ports 443 and 80, where a connection or a reset both count as "reachable". Under bridge networking the detected gateway is the Docker bridge address of the host, not your router.
 
+## Local network scanning
+
+Open **Devices** to see what is on your LAN. Wanetra keeps an inventory keyed by MAC address: IP address, a name (from mDNS, NetBIOS, reverse DNS or UPnP), the manufacturer, when it was last seen and what changed. Scanning is off until you turn it on under Settings → Network scanning, and it needs the host's network, so use the extra Compose file:
+
+```sh
+docker compose -f compose.lan.yaml up -d
+```
+
+Docker's default bridge network hides the LAN from a container, and `compose.lan.yaml` fixes that with `network_mode: host`. That means Linux only (Docker Desktop on macOS and Windows runs containers in a VM). There is no port mapping any more: Wanetra listens on `WANETRA_BIND_ADDRESS:WANETRA_PORT` of the host, `127.0.0.1:8080` by default. If you set the address to `0.0.0.0` to reach the UI from another machine, the UI is open to your whole network, so keep sign-in on. The file also replaces the container health check, which would otherwise keep asking port 8080.
+
+### How it works
+
+Wanetra needs no extra privileges and no raw sockets:
+
+1. It sends one small UDP datagram to every address in the network. For an address on the same network the kernel first asks "who has this IP?" (ARP).
+2. After about ten seconds it reads the kernel's neighbour table (`/proc/net/arp`). Whoever answered is there, even devices that ignore ping.
+3. For each device that answered it asks for a name through mDNS and NetBIOS, falls back to reverse DNS, and listens for UPnP announcements (routers, TVs, printers). The manufacturer comes from the IEEE registry built into the image.
+
+Only private networks are scanned (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and link-local), at most 1,022 addresses at a time. Without `Lan__Cidr`, Wanetra scans the network of each real interface on the host, ignoring loopback, VPN and Docker interfaces. Larger subnets are narrowed to the `/24` the host sits in. A container on Docker's bridge network is detected and told to use `compose.lan.yaml`.
+
+### What you get
+
+- **First scan** learns the network and marks everything as known, so you are not alerted about your own things.
+- **Unknown devices**: anything that shows up later is flagged *New* and raises a notification (turn that off with `Lan__AlertOnNewDevice`). Check it, then mark it as yours. **Mark all as known** clears the list after you have reviewed it.
+- **Offline**: a device is offline after it misses three scans in a row (`Lan__OfflineAfterScans`), because phones sleep. A device that flickers never flips state.
+- **Watched devices** raise a notification when they go offline and another when they return, and get a ping target on the Connectivity page, which follows the device if DHCP gives it a new address.
+- **History** of joins, offline and online changes and address changes per device.
+- **Private MAC addresses**: phones and laptops invent a different MAC per network, which cannot be told apart from a new device, and their manufacturer is hidden. They are labelled *Private MAC*; give them a name and mark them as known.
+
+The scan result is only as good as the network allows: devices on another VLAN or behind a guest-network client isolation are not visible, and a device that has been unplugged can stay in the kernel's table for a short while.
+
+The manufacturer table is generated by `bun scripts/update-oui.ts` from the IEEE registry. Re-run it and commit `backend/Wanetra.Infrastructure/Lan/oui.txt` to refresh it.
+
 ## Alerts and notifications
 
 A fresh install has one alert rule: download falling 30% below the baseline. You can also set minimum download and upload, maximum latency, jitter and packet loss, and a drop for upload.
@@ -191,7 +227,7 @@ Reading the notification settings never returns secrets or webhook URLs. When yo
 
 ## Metrics
 
-`/metrics` serves Prometheus metrics: the latest `wanetra_download_mbps`, `wanetra_upload_mbps`, `wanetra_latency_ms`, `wanetra_jitter_ms` and `wanetra_packet_loss_percent`, plus `wanetra_speedtest_success`, `wanetra_speedtest_duration_seconds`, `wanetra_last_speedtest_timestamp`, `wanetra_connection_degraded`, the counters `wanetra_speedtests_total` and `wanetra_speedtest_failures_total`, the connection-monitoring metrics `wanetra_probe_up{target,role}`, `wanetra_probe_rtt_ms{target,role}` (`NaN` when a probe failed), `wanetra_probe_failures_total{target,role}`, `wanetra_outage_active` and `wanetra_outages_total`, and standard HTTP metrics.
+`/metrics` serves Prometheus metrics: the latest `wanetra_download_mbps`, `wanetra_upload_mbps`, `wanetra_latency_ms`, `wanetra_jitter_ms` and `wanetra_packet_loss_percent`, plus `wanetra_speedtest_success`, `wanetra_speedtest_duration_seconds`, `wanetra_last_speedtest_timestamp`, `wanetra_connection_degraded`, the counters `wanetra_speedtests_total` and `wanetra_speedtest_failures_total`, the connection-monitoring metrics `wanetra_probe_up{target,role}`, `wanetra_probe_rtt_ms{target,role}` (`NaN` when a probe failed), `wanetra_probe_failures_total{target,role}`, `wanetra_outage_active` and `wanetra_outages_total`, the scanning metrics `wanetra_lan_devices`, `wanetra_lan_devices_online`, `wanetra_lan_devices_unknown`, `wanetra_lan_scans_total`, `wanetra_lan_last_scan_success` and `wanetra_lan_last_scan_timestamp`, and standard HTTP metrics.
 
 ## Security
 
@@ -207,6 +243,8 @@ After that:
 - The cookie only carries the `Secure` flag when the request arrived over HTTPS. Behind a TLS-terminating reverse proxy, set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` so Wanetra sees the original scheme.
 
 You can turn authentication off under **Settings → Security**, after confirming your password, and turn it on again later. If you lose the password, start the container with `WANETRA_AUTH=disabled`, then set a new password under Settings or turn authentication back on. While `WANETRA_AUTH` is set, Settings cannot change authentication, the same way other environment variables lock their settings. `WANETRA_AUTH=enabled` pins it on.
+
+The device inventory (every MAC and IP address on your network) is sensitive. With host networking Wanetra listens on the host, so keep sign-in on and the bind address on `127.0.0.1` unless you need more.
 
 Authentication is not a substitute for network isolation: the connection is plain HTTP unless you add a reverse proxy with TLS. The Compose files bind to `127.0.0.1` by default so that only the Docker host can reach it. To use it from your LAN, set `WANETRA_BIND_ADDRESS` to the host's LAN address (or to `0.0.0.0` for every interface) and put TLS in front of it if the network is not trusted. Do not expose it to the public internet without a reverse proxy.
 
@@ -237,6 +275,13 @@ To report a vulnerability, follow [SECURITY.md](SECURITY.md).
 | `GET` | `/api/probes/series?targetId=&from=&to=&resolution=` | Latency and loss for one target. `resolution` is `auto` (default), `raw` (24 hours at most), `minute` or `hour`. |
 | `GET` | `/api/outages?count=` | Recent outages (1 to 100, default 20). |
 | `GET` | `/api/uptime?range=` | Uptime for `24h` (default), `7d`, `30d` or `90d`. |
+| `GET` | `/api/lan/status` | Whether scanning is on, whether a scan is running, the next scan, the last scan, device counts and the networks being scanned. |
+| `POST` | `/api/lan/scan` | Start a scan. `202`, or `409` when scanning is off (`lan_disabled`) or a scan is already running. |
+| `GET` | `/api/lan/events?count=` | Recent joins, offline and online changes and address changes across all devices (1 to 200, default 50). |
+| `GET` | `/api/devices` | Every device seen. |
+| `GET`, `PUT`, `DELETE` | `/api/devices/{id}` | Read a device, change `{name, known, watch}` (omitted fields keep their value; an empty name clears it) or forget it. |
+| `GET` | `/api/devices/{id}/events?count=` | History of one device. |
+| `POST` | `/api/devices/mark-all-known` | Mark every device as known. |
 | `GET`, `PUT` | `/api/alerts/rule` | Read or save the alert rule and its transition counts. |
 | `GET`, `PUT` | `/api/notifications` | Read or save the ntfy and webhook configuration. |
 | `POST` | `/api/notifications/test` | Send a test notification to a saved or draft destination. |

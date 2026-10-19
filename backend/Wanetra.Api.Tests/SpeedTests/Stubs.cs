@@ -83,6 +83,11 @@ internal sealed class RecordingAlertStateRepository : IAlertStateRepository
     public Task<IReadOnlyList<Outage>> GetPendingNotificationOutagesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Outage>>([]);
 
+    public Task<DeviceAlert?> GetDeviceAlertAsync(long id, CancellationToken cancellationToken) => Task.FromResult<DeviceAlert?>(null);
+
+    public Task<IReadOnlyList<DeviceAlert>> GetPendingNotificationDeviceAlertsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DeviceAlert>>([]);
+
     public void AddNotificationDelivery(NotificationDelivery delivery) { }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;

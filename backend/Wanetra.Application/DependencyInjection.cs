@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Wanetra.Application.Alerts;
 using Wanetra.Application.Auth;
 using Wanetra.Application.Baselines;
+using Wanetra.Application.Lan;
 using Wanetra.Application.Notifications;
 using Wanetra.Application.Probes;
 using Wanetra.Application.Scheduling;
@@ -49,6 +50,13 @@ public static class DependencyInjection
         services.AddScoped<ProbeQueryService>();
         services.AddHostedService<ProbeWorker>();
         services.AddHostedService<ProbeMaintenanceWorker>();
+
+        services.TryAddSingleton<ILanMetrics, NoopLanMetrics>();
+        services.AddSingleton<LanScanCoordinator>();
+        services.AddScoped<DeviceProbeLinker>();
+        services.AddScoped<LanScanService>();
+        services.AddScoped<DeviceService>();
+        services.AddHostedService<LanScanWorker>();
 
         return services;
     }

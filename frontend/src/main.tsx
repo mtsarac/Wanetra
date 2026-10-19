@@ -9,6 +9,7 @@ import AlertSettings from './AlertSettings'
 import App from './App.tsx'
 import AppShell from './AppShell'
 import ConnectivityPage from './connectivity/ConnectivityPage'
+import DevicesPage from './devices/DevicesPage'
 import HistoryPage from './HistoryPage'
 import NotificationsPanel from './Notifications'
 import SettingsPage from './SettingsPage'
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <App /> },
       { path: 'connectivity', element: <ConnectivityPage /> },
+      { path: 'devices', element: <DevicesPage /> },
       { path: 'history', element: <HistoryPage /> },
       { path: 'alerts', element: <AlertSettings /> },
       { path: 'notifications', element: <NotificationsPanel /> },

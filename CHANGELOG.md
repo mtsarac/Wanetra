@@ -6,6 +6,10 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ### Added
 
+- Local network scanning, off by default. Finds the devices on the LAN through the kernel's ARP table (no extra privileges), names them with mDNS, NetBIOS, reverse DNS and UPnP, and looks up the manufacturer in the IEEE registry built into the image. The first scan learns the network silently; later unknown devices raise a notification, watched devices raise one when they go offline and when they return, and a watched device gets a ping target that follows its address. Only private ranges of at most 1,022 addresses are scanned.
+- **Devices** page with the inventory, filters, per-device history, naming, "known" and "watch" flags, and a scan button; Settings → Network scanning; `/api/lan/*` and `/api/devices/*` endpoints; `wanetra_lan_*` metrics; `Lan__*` environment variables.
+- `compose.lan.yaml`, which runs Wanetra with host networking (Linux only) so it can see the LAN, binds the UI to `127.0.0.1` by default and fixes the container health check for the host port.
+- `scripts/update-oui.ts` regenerates the manufacturer table.
 - Connection monitoring. Wanetra probes the default gateway, three public IPs and a DNS lookup every 10 seconds (ping with a TCP fallback, TCP, DNS and HTTP checks), keeps raw samples with per-minute and per-hour summaries, and opens an outage when every internet target stays unreachable. The outage says whether the local network, the internet link or DNS is at fault. Targets can be added, paused, edited and deleted.
 - Outage notifications through the existing ntfy and webhook destinations. A notice that cannot be sent while offline is delivered after the connection returns.
 - **Connectivity** page and a live connection summary on the Dashboard, with uptime for 24 hours, 7 days and 30 days, a latency and packet-loss chart and an outage timeline.

@@ -29,6 +29,12 @@ public sealed class NotificationDispatcher(
             {
                 await DispatchEventAsync(outage, cancellationToken);
             }
+
+            var pendingDeviceAlerts = await alertRepository.GetPendingNotificationDeviceAlertsAsync(cancellationToken);
+            foreach (var deviceAlert in pendingDeviceAlerts)
+            {
+                await DispatchEventAsync(deviceAlert, cancellationToken);
+            }
         }
         finally
         {
@@ -69,6 +75,26 @@ public sealed class NotificationDispatcher(
             }
 
             await DispatchTriggerAsync(outage, trigger, cancellationToken);
+        }
+        finally
+        {
+            DispatchGate.Release();
+        }
+    }
+
+    public async Task DispatchDeviceAlertAsync(NotificationTrigger trigger, long alertId, CancellationToken cancellationToken)
+    {
+        await DispatchGate.WaitAsync(cancellationToken);
+        try
+        {
+            var alert = await alertRepository.GetDeviceAlertAsync(alertId, cancellationToken);
+            if (alert is null)
+            {
+                logger.LogError("Notification skipped: device alert {EventId} not found", alertId);
+                return;
+            }
+
+            await DispatchTriggerAsync(alert, trigger, cancellationToken);
         }
         finally
         {
@@ -263,6 +289,7 @@ public sealed class NotificationDispatcher(
         {
             DegradationEvent degradationEvent => NotificationMessageBuilder.Build(trigger, degradationEvent),
             Outage outage => NotificationMessageBuilder.Build(trigger, outage),
+            DeviceAlert deviceAlert => NotificationMessageBuilder.Build(trigger, deviceAlert),
             _ => throw new ArgumentOutOfRangeException(nameof(notifiable), notifiable.GetType(), null),
         };
 

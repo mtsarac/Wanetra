@@ -88,7 +88,16 @@ public sealed partial class ProbeTargetService(
         var target = await probes.GetTargetAsync(id, cancellationToken)
             ?? throw new ProbeTargetException(ProbeTargetErrorKind.NotFound, "Probe target not found.");
         var previousName = target.Name;
-        await ApplyAsync(target, input, cancellationToken);
+        if (target.DeviceId is not null)
+        {
+            // The Devices page owns what is probed; the target can only be paused here.
+            target.Enabled = input.Enabled;
+        }
+        else
+        {
+            await ApplyAsync(target, input, cancellationToken);
+        }
+
         await probes.SaveChangesAsync(cancellationToken);
         if (!string.Equals(previousName, target.Name, StringComparison.Ordinal) || !target.Enabled)
         {
@@ -102,6 +111,11 @@ public sealed partial class ProbeTargetService(
     {
         var target = await probes.GetTargetAsync(id, cancellationToken)
             ?? throw new ProbeTargetException(ProbeTargetErrorKind.NotFound, "Probe target not found.");
+        if (target.DeviceId is not null)
+        {
+            throw Invalid("This target follows a watched device. Stop watching the device to remove it.");
+        }
+
         probes.RemoveTarget(target);
         await probes.SaveChangesAsync(cancellationToken);
         metrics.RemoveProbeTarget(target.Name);

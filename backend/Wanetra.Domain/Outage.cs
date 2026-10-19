@@ -44,5 +44,6 @@ public class Outage : INotifiableEvent
     {
         delivery.OutageId = Id;
         delivery.DegradationEventId = null;
+        delivery.DeviceAlertId = null;
     }
 }

@@ -62,12 +62,12 @@
 .chain-node.down .chain-state { color: var(--red); }
 .chain-node.unknown .chain-state { color: var(--muted); }
 
-.uptime-grid {
+.stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: var(--space-3);
 }
-.uptime-card {
+.stat-card {
   display: grid;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
@@ -75,9 +75,9 @@
   border-radius: 8px;
   background: var(--surface);
 }
-.uptime-card span { color: var(--muted); font-size: var(--fs-xs); letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
-.uptime-card strong { font-size: var(--fs-xl); }
-.uptime-card small { color: var(--muted); font-size: var(--fs-xs); }
+.stat-card span { color: var(--muted); font-size: var(--fs-xs); letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+.stat-card strong { font-size: var(--fs-xl); }
+.stat-card small { color: var(--muted); font-size: var(--fs-xs); }
 
 .summary-link {
   color: var(--blue);

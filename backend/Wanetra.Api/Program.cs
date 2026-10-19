@@ -21,6 +21,7 @@ var dataPath = Path.GetFullPath(
 builder.Services.AddSingleton<WanetraMetrics>();
 builder.Services.AddSingleton<IPrometheusMetrics>(services => services.GetRequiredService<WanetraMetrics>());
 builder.Services.AddSingleton<IProbeMetrics>(services => services.GetRequiredService<WanetraMetrics>());
+builder.Services.AddSingleton<ILanMetrics>(services => services.GetRequiredService<WanetraMetrics>());
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration, dataPath);
 
@@ -94,6 +95,7 @@ app.MapScheduleEndpoints();
 app.MapBaselineEndpoints();
 app.MapAlertEndpoints();
 app.MapProbeEndpoints();
+app.MapLanEndpoints();
 app.MapNotificationEndpoints();
 app.MapFallbackToFile("index.html");
 

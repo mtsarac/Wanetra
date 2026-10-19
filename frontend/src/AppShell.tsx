@@ -5,6 +5,7 @@ import { useAuth } from './auth/AuthContext'
 const navigation = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/connectivity', label: 'Connectivity' },
+  { to: '/devices', label: 'Devices' },
   { to: '/history', label: 'History' },
   { to: '/alerts', label: 'Alerts' },
   { to: '/notifications', label: 'Notifications' },
@@ -14,6 +15,7 @@ const navigation = [
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard · Wanetra',
   '/connectivity': 'Connectivity · Wanetra',
+  '/devices': 'Devices · Wanetra',
   '/history': 'History · Wanetra',
   '/alerts': 'Alerts · Wanetra',
   '/notifications': 'Notifications · Wanetra',

@@ -31,6 +31,9 @@ public class ProbeTarget
     // Dns only: resolver address. Empty means the system resolver.
     public string? Resolver { get; set; }
 
+    // Set when the target follows a watched device; the Devices page owns it.
+    public long? DeviceId { get; set; }
+
     public bool Enabled { get; set; } = true;
     public DateTime CreatedAt { get; set; }
 }

@@ -21,6 +21,14 @@ public static class NotificationMessageBuilder
             _ => throw new ArgumentOutOfRangeException(nameof(trigger), trigger, null),
         };
 
+    public static NotificationMessage Build(NotificationTrigger trigger, DeviceAlert alert) =>
+        trigger switch
+        {
+            NotificationTrigger.Opened => BuildDeviceOpened(alert),
+            NotificationTrigger.Recovered => BuildDeviceRecovered(alert),
+            _ => throw new ArgumentOutOfRangeException(nameof(trigger), trigger, null),
+        };
+
     public static NotificationMessage Test(string provider) => new(
         "Wanetra test notification",
         $"Test notification from Wanetra via {provider}.",
@@ -29,6 +37,46 @@ public static class NotificationMessageBuilder
         null,
         null,
         null);
+
+    private static NotificationMessage BuildDeviceOpened(DeviceAlert alert)
+    {
+        var details = new List<string> { $"MAC: {alert.Mac}" };
+        if (alert.Ip is not null)
+        {
+            details.Add($"IP: {alert.Ip}");
+        }
+
+        if (alert.Vendor is not null)
+        {
+            details.Add($"Vendor: {alert.Vendor}");
+        }
+
+        return alert.Kind == DeviceAlertKind.NewDevice
+            ? new NotificationMessage(
+                "New device on your network",
+                $"{alert.DeviceLabel} joined the network.\n\n{string.Join('\n', details)}\n\nMark it as known on the Devices page if it is yours.",
+                "device.new",
+                DateTime.UtcNow,
+                null,
+                null,
+                null)
+            : new NotificationMessage(
+                "Watched device offline",
+                $"{alert.DeviceLabel} stopped answering.\n\n{string.Join('\n', details)}",
+                "device.offline",
+                DateTime.UtcNow,
+                null,
+                null,
+                null);
+    }
+
+    private static NotificationMessage BuildDeviceRecovered(DeviceAlert alert)
+    {
+        var body = alert.EndedAt is { } ended
+            ? $"{alert.DeviceLabel} is back online after {FormatDuration(ended - alert.StartedAt)}."
+            : $"{alert.DeviceLabel} is back online.";
+        return new NotificationMessage("Device back online", body, "device.online", DateTime.UtcNow, null, null, null);
+    }
 
     private static NotificationMessage BuildOutageOpened(Outage outage)
     {

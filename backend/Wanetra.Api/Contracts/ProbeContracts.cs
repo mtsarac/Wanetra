@@ -21,7 +21,8 @@ public sealed record ProbeTargetResponse(
     int? Port,
     string? Resolver,
     bool Enabled,
-    DateTime CreatedAt)
+    DateTime CreatedAt,
+    long? DeviceId)
 {
     public static ProbeTargetResponse From(ProbeTarget target) => new(
         target.Id,
@@ -32,7 +33,8 @@ public sealed record ProbeTargetResponse(
         target.Port,
         target.Resolver,
         target.Enabled,
-        target.CreatedAt);
+        target.CreatedAt,
+        target.DeviceId);
 }
 
 public sealed record ProbeTargetRequest(

@@ -97,7 +97,7 @@ export type DegradationEvent = {
 }
 
 export type SettingType = 'choice' | 'integer' | 'boolean' | 'text'
-export type SettingGroup = 'speedtest' | 'retention' | 'probes'
+export type SettingGroup = 'speedtest' | 'retention' | 'probes' | 'lan'
 export type SettingSource = 'default' | 'stored' | 'environment'
 export type SettingLockReason = 'environment' | 'restricted'
 
@@ -185,9 +185,10 @@ export type ProbeTarget = {
   resolver: string | null
   enabled: boolean
   createdAt: string
+  deviceId: number | null
 }
 
-export type ProbeTargetInput = Omit<ProbeTarget, 'id' | 'createdAt'>
+export type ProbeTargetInput = Omit<ProbeTarget, 'id' | 'createdAt' | 'deviceId'>
 
 export type LayerState = 'up' | 'down' | 'unknown'
 export type OutageScope = 'localNetwork' | 'wan' | 'dns'
@@ -258,6 +259,56 @@ export type Uptime = {
   totalOutageSeconds: number
   longestOutageSeconds: number
   coversFullRange: boolean
+}
+
+export type Device = {
+  id: number
+  mac: string
+  ip: string | null
+  displayName: string
+  name: string | null
+  hostname: string | null
+  description: string | null
+  vendor: string | null
+  known: boolean
+  watch: boolean
+  online: boolean
+  randomizedMac: boolean
+  firstSeenAt: string
+  lastSeenAt: string
+  lastStateChangeAt: string
+}
+
+export type DeviceUpdate = { name?: string; known?: boolean; watch?: boolean }
+
+export type DeviceEvent = {
+  id: number
+  deviceId: number
+  timestamp: string
+  type: 'joined' | 'online' | 'offline' | 'ipChanged'
+  detail: string | null
+}
+
+export type ScanRun = {
+  startedAt: string
+  finishedAt: string
+  networks: string
+  hostsFound: number
+  success: boolean
+  error: string | null
+  trigger: string
+}
+
+export type LanStatus = {
+  enabled: boolean
+  scanning: boolean
+  nextScanAt: string | null
+  lastScan: ScanRun | null
+  totalDevices: number
+  onlineDevices: number
+  unknownDevices: number
+  networks: string[]
+  onlyContainerNetworks: boolean
 }
 
 type ApiError = { code?: string; message?: string }
@@ -332,6 +383,13 @@ async function getLatest(): Promise<SpeedTestResult | null> {
 }
 
 export const api = {
+  getLanStatus: () => request<LanStatus>('/api/lan/status'),
+  startLanScan: () => postJson<{ status: string }>('/api/lan/scan'),
+  getDevices: () => request<Device[]>('/api/devices'),
+  updateDevice: (id: number, update: DeviceUpdate) => sendJson<Device>('PUT', `/api/devices/${id}`, update),
+  deleteDevice: (id: number) => request<void>(`/api/devices/${id}`, { method: 'DELETE' }),
+  markAllDevicesKnown: () => postJson<{ updated: number }>('/api/devices/mark-all-known'),
+  getDeviceEvents: (id: number, count = 20) => request<DeviceEvent[]>(`/api/devices/${id}/events?count=${count}`),
   getConnectivity: () => request<ConnectivityStatus>('/api/probes/status'),
   getProbeTargets: () => request<ProbeTarget[]>('/api/probes/targets'),
   createProbeTarget: (input: ProbeTargetInput) => postJson<ProbeTarget>('/api/probes/targets', input),
