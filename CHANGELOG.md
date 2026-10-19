@@ -4,6 +4,8 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-19
+
 ### Added
 
 - Local network scanning, off by default. Finds the devices on the LAN through the kernel's ARP table (no extra privileges), names them with mDNS, NetBIOS, reverse DNS and UPnP, and looks up the manufacturer in the IEEE registry built into the image. The first scan learns the network silently; later unknown devices raise a notification, watched devices raise one when they go offline and when they return, and a watched device gets a ping target that follows its address. Only private ranges of at most 1,022 addresses are scanned.
@@ -161,6 +163,7 @@ Includes everything since the initial repository bootstrap; earlier pre-release 
 - Dependency review now blocks high-severity dependency changes, CodeQL uploads results, and Dependabot tracks the Bun lockfile.
 - GitHub Releases are marked Latest when their tag is the highest SemVer release on `main`; backports to older lines are not.
 
-[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/mtsarac/Wanetra/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/mtsarac/Wanetra/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/mtsarac/Wanetra/releases/tag/v0.3.0
