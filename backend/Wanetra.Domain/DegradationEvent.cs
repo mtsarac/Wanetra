@@ -36,5 +36,6 @@ public class DegradationEvent : INotifiableEvent
     {
         delivery.DegradationEventId = Id;
         delivery.OutageId = null;
+        delivery.DeviceAlertId = null;
     }
 }

@@ -13,6 +13,11 @@ public static class SettingKeys
     public const string SpeedTestOoklaExecutablePath = "speedtest.ookla.executablePath";
     public const string SpeedTestOoklaAcceptLicense = "speedtest.ookla.acceptLicense";
     public const string RetentionDays = "retention.days";
+    public const string LanEnabled = "lan.enabled";
+    public const string LanScanIntervalMinutes = "lan.scanIntervalMinutes";
+    public const string LanCidr = "lan.cidr";
+    public const string LanOfflineAfterScans = "lan.offlineAfterScans";
+    public const string LanAlertOnNewDevice = "lan.alertOnNewDevice";
     public const string ProbesEnabled = "probes.enabled";
     public const string ProbesIntervalSeconds = "probes.intervalSeconds";
     public const string ProbesTimeoutMs = "probes.timeoutMs";
@@ -151,6 +156,55 @@ public static class SettingDefinitions
             Restricted: false,
             Min: 1,
             Max: null),
+
+        new(
+            Key: SettingKeys.LanEnabled,
+            Group: SettingGroupNames.Lan,
+            Type: SettingType.Boolean,
+            DefaultValue: false,
+            Nullable: false,
+            ConfigurationKey: "Lan:Enabled",
+            Restricted: false),
+
+        new(
+            Key: SettingKeys.LanScanIntervalMinutes,
+            Group: SettingGroupNames.Lan,
+            Type: SettingType.Integer,
+            DefaultValue: 5,
+            Nullable: false,
+            ConfigurationKey: "Lan:ScanIntervalMinutes",
+            Restricted: false,
+            Min: 1,
+            Max: 1440),
+
+        new(
+            Key: SettingKeys.LanCidr,
+            Group: SettingGroupNames.Lan,
+            Type: SettingType.Text,
+            DefaultValue: null,
+            Nullable: true,
+            ConfigurationKey: "Lan:Cidr",
+            Restricted: false),
+
+        new(
+            Key: SettingKeys.LanOfflineAfterScans,
+            Group: SettingGroupNames.Lan,
+            Type: SettingType.Integer,
+            DefaultValue: 3,
+            Nullable: false,
+            ConfigurationKey: "Lan:OfflineAfterScans",
+            Restricted: false,
+            Min: 1,
+            Max: 20),
+
+        new(
+            Key: SettingKeys.LanAlertOnNewDevice,
+            Group: SettingGroupNames.Lan,
+            Type: SettingType.Boolean,
+            DefaultValue: true,
+            Nullable: false,
+            ConfigurationKey: "Lan:AlertOnNewDevice",
+            Restricted: false),
 
         new(
             Key: SettingKeys.ProbesEnabled,

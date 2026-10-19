@@ -17,7 +17,7 @@ function UptimeCard({ range, label }: { range: UptimeRange; label: string }) {
 
   const data = query.data
   return (
-    <div className="uptime-card">
+    <div className="stat-card">
       <span>{label}</span>
       <strong>{data ? formatUptime(data.uptimePercent) : '—'}</strong>
       <small>
@@ -34,7 +34,7 @@ function UptimeCard({ range, label }: { range: UptimeRange; label: string }) {
 export function UptimeCards({ only }: { only?: UptimeRange }) {
   const shown = only ? ranges.filter((item) => item.range === only) : ranges
   return (
-    <div className="uptime-grid" role="group" aria-label="Uptime">
+    <div className="stat-grid" role="group" aria-label="Uptime">
       {shown.map((item) => <UptimeCard key={item.range} {...item} />)}
     </div>
   )

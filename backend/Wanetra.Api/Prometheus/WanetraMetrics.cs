@@ -3,7 +3,7 @@ using Wanetra.Domain;
 
 namespace Wanetra.Api.Prometheus;
 
-public sealed class WanetraMetrics : IPrometheusMetrics, IProbeMetrics
+public sealed class WanetraMetrics : IPrometheusMetrics, IProbeMetrics, ILanMetrics
 {
     private readonly Gauge downloadMbps;
     private readonly Gauge uploadMbps;
@@ -21,6 +21,12 @@ public sealed class WanetraMetrics : IPrometheusMetrics, IProbeMetrics
     private readonly Counter probeFailuresTotal;
     private readonly Gauge outageActive;
     private readonly Counter outagesTotal;
+    private readonly Gauge lanDevices;
+    private readonly Gauge lanDevicesOnline;
+    private readonly Gauge lanDevicesUnknown;
+    private readonly Gauge lanLastScanTimestamp;
+    private readonly Gauge lanLastScanSuccess;
+    private readonly Counter lanScansTotal;
     private readonly Lock probeGate = new();
     private readonly Dictionary<string, string> probeRoles = new(StringComparer.Ordinal);
 
@@ -47,6 +53,13 @@ public sealed class WanetraMetrics : IPrometheusMetrics, IProbeMetrics
         probeFailuresTotal = factory.CreateCounter("wanetra_probe_failures_total", "Total number of failed probes per target.", ["target", "role"]);
         outageActive = factory.CreateGauge("wanetra_outage_active", "Whether a connection outage is open (1 or 0).");
         outagesTotal = factory.CreateCounter("wanetra_outages_total", "Total number of connection outages opened.");
+
+        lanDevices = factory.CreateGauge("wanetra_lan_devices", "Devices Wanetra has seen on the local network.");
+        lanDevicesOnline = factory.CreateGauge("wanetra_lan_devices_online", "Devices that answered the latest LAN scan.");
+        lanDevicesUnknown = factory.CreateGauge("wanetra_lan_devices_unknown", "Devices that have not been marked as known.");
+        lanLastScanTimestamp = factory.CreateGauge("wanetra_lan_last_scan_timestamp", "Unix timestamp of the latest LAN scan.");
+        lanLastScanSuccess = factory.CreateGauge("wanetra_lan_last_scan_success", "Whether the latest LAN scan succeeded (1 or 0).");
+        lanScansTotal = factory.CreateCounter("wanetra_lan_scans_total", "Total number of LAN scans.");
 
         downloadMbps.Set(0);
         uploadMbps.Set(0);
@@ -158,5 +171,19 @@ public sealed class WanetraMetrics : IPrometheusMetrics, IProbeMetrics
         probeUp.RemoveLabelled(target, role);
         probeRttMs.RemoveLabelled(target, role);
         probeFailuresTotal.RemoveLabelled(target, role);
+    }
+
+    public void SetDeviceCounts(int total, int online, int unknown)
+    {
+        lanDevices.Set(total);
+        lanDevicesOnline.Set(online);
+        lanDevicesUnknown.Set(unknown);
+    }
+
+    public void RecordScan(bool success, double durationSeconds)
+    {
+        lanScansTotal.Inc();
+        lanLastScanSuccess.Set(success ? 1 : 0);
+        lanLastScanTimestamp.Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 }

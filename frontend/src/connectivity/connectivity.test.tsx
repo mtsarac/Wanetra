@@ -31,11 +31,11 @@ function renderWithClient(ui: ReactNode) {
 
 const gateway: ProbeTarget = {
   id: 1, name: 'Gateway', kind: 'icmp', role: 'gateway', target: null, port: null, resolver: null,
-  enabled: true, createdAt: '2026-10-18T10:00:00Z',
+  enabled: true, createdAt: '2026-10-18T10:00:00Z', deviceId: null,
 }
 const cloudflare: ProbeTarget = {
   id: 2, name: 'Cloudflare', kind: 'icmp', role: 'internet', target: '1.1.1.1', port: null, resolver: null,
-  enabled: true, createdAt: '2026-10-18T10:00:00Z',
+  enabled: true, createdAt: '2026-10-18T10:00:00Z', deviceId: null,
 }
 
 function statusOf(target: ProbeTarget, over: Partial<ProbeTargetStatus> = {}): ProbeTargetStatus {

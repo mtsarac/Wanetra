@@ -14,6 +14,11 @@ export const PROBE_INTEGER_KEYS = [
   'probes.retention.minuteDays',
 ] as const
 
+export const LAN_ENABLED_KEY = 'lan.enabled'
+export const LAN_ALERT_KEY = 'lan.alertOnNewDevice'
+export const LAN_CIDR_KEY = 'lan.cidr'
+export const LAN_INTEGER_KEYS = ['lan.scanIntervalMinutes', 'lan.offlineAfterScans'] as const
+
 export type EngineId = 'librespeed' | 'cloudflare' | 'ookla'
 
 export type EngineOption = {
@@ -122,6 +127,26 @@ export const FIELD_METAS: Record<string, FieldMeta> = {
   'probes.retention.minuteDays': {
     label: 'Keep per-minute summaries for (days)',
     help: 'Hourly summaries and outages follow “Keep results for (days)” under measurement history.',
+  },
+  [LAN_ENABLED_KEY]: {
+    label: 'Scan the local network',
+    help: 'Find the devices on your LAN and keep an inventory. Needs host networking; see compose.lan.yaml.',
+  },
+  'lan.scanIntervalMinutes': {
+    label: 'Scan every (minutes)',
+    help: 'How often Wanetra looks for devices.',
+  },
+  [LAN_CIDR_KEY]: {
+    label: 'Networks to scan',
+    help: 'Comma-separated, for example 192.168.1.0/24. Empty detects the networks of this machine. Private ranges only, /22 or smaller.',
+  },
+  'lan.offlineAfterScans': {
+    label: 'Missed scans before a device is offline',
+    help: 'Phones sleep and miss scans; a higher number avoids false “offline” reports.',
+  },
+  [LAN_ALERT_KEY]: {
+    label: 'Alert when an unknown device joins',
+    help: 'Sends a notification the first time a device appears after the first scan.',
   },
   [RETENTION_DAYS_KEY]: {
     label: 'Keep results for (days)',

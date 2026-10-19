@@ -18,6 +18,10 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
     public DbSet<ProbeSample> ProbeSamples => Set<ProbeSample>();
     public DbSet<ProbeRollup> ProbeRollups => Set<ProbeRollup>();
     public DbSet<Outage> Outages => Set<Outage>();
+    public DbSet<Device> Devices => Set<Device>();
+    public DbSet<DeviceEvent> DeviceEvents => Set<DeviceEvent>();
+    public DbSet<ScanRun> ScanRuns => Set<ScanRun>();
+    public DbSet<DeviceAlert> DeviceAlerts => Set<DeviceAlert>();
     public DbSet<AuthAccount> AuthAccounts => Set<AuthAccount>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
 
@@ -80,6 +84,7 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
             entity.Property(x => x.LastErrorSummary).HasMaxLength(128);
             entity.HasIndex(x => new { x.DegradationEventId, x.Trigger, x.ConfigurationId }).IsUnique();
             entity.HasIndex(x => new { x.OutageId, x.Trigger, x.ConfigurationId }).IsUnique();
+            entity.HasIndex(x => new { x.DeviceAlertId, x.Trigger, x.ConfigurationId }).IsUnique();
             entity.HasOne(delivery => delivery.DegradationEvent)
                 .WithMany(degradationEvent => degradationEvent.NotificationDeliveries)
                 .HasForeignKey(delivery => delivery.DegradationEventId)
@@ -87,6 +92,10 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
             entity.HasOne(delivery => delivery.Outage)
                 .WithMany(outage => outage.NotificationDeliveries)
                 .HasForeignKey(delivery => delivery.OutageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(delivery => delivery.DeviceAlert)
+                .WithMany(alert => alert.NotificationDeliveries)
+                .HasForeignKey(delivery => delivery.DeviceAlertId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -98,6 +107,7 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
             entity.Property(x => x.Target).HasMaxLength(2048);
             entity.Property(x => x.Resolver).HasMaxLength(64);
             entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => x.DeviceId);
         });
 
         modelBuilder.Entity<ProbeSample>(entity =>
@@ -115,6 +125,48 @@ public class WanetraDbContext(DbContextOptions<WanetraDbContext> options) : DbCo
             entity.HasIndex(x => new { x.TargetId, x.Resolution, x.BucketStart }).IsUnique();
             entity.HasIndex(x => new { x.Resolution, x.BucketStart });
             entity.HasOne<ProbeTarget>().WithMany().HasForeignKey(x => x.TargetId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Device>(entity =>
+        {
+            entity.Property(x => x.Mac).HasMaxLength(17);
+            entity.Property(x => x.CurrentIp).HasMaxLength(45);
+            entity.Property(x => x.Hostname).HasMaxLength(64);
+            entity.Property(x => x.Vendor).HasMaxLength(256);
+            entity.Property(x => x.Description).HasMaxLength(64);
+            entity.Property(x => x.Name).HasMaxLength(64);
+            entity.HasIndex(x => x.Mac).IsUnique();
+            entity.HasIndex(x => x.CurrentIp);
+        });
+
+        modelBuilder.Entity<DeviceEvent>(entity =>
+        {
+            entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Detail).HasMaxLength(128);
+            entity.HasIndex(x => new { x.DeviceId, x.Timestamp });
+            entity.HasIndex(x => x.Timestamp);
+            entity.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ScanRun>(entity =>
+        {
+            entity.Property(x => x.Networks).HasMaxLength(256);
+            entity.Property(x => x.Error).HasMaxLength(512);
+            entity.Property(x => x.Trigger).HasMaxLength(16);
+            entity.HasIndex(x => x.StartedAt);
+        });
+
+        modelBuilder.Entity<DeviceAlert>(entity =>
+        {
+            entity.Ignore(x => x.IsRecovered);
+            entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.DeviceLabel).HasMaxLength(256);
+            entity.Property(x => x.Mac).HasMaxLength(17);
+            entity.Property(x => x.Ip).HasMaxLength(45);
+            entity.Property(x => x.Vendor).HasMaxLength(256);
+            entity.HasIndex(x => new { x.DeviceId, x.Kind, x.Status });
+            entity.HasOne(x => x.Device).WithMany().HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Outage>(entity =>

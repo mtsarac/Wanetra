@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 import { Button } from '../components/ui/button'
 import {
   api,
@@ -198,8 +199,12 @@ function TargetRow({
         >
           {target.enabled ? 'Pause' : 'Resume'}
         </Button>
-        <Button variant="outline" size="sm" onClick={onEdit} aria-label={`Edit ${target.name}`}>Edit</Button>
-        {confirming ? (
+        {target.deviceId != null ? (
+          <Link className="summary-link" to="/devices" aria-label={`Open devices for ${target.name}`}>Follows a device</Link>
+        ) : (
+          <Button variant="outline" size="sm" onClick={onEdit} aria-label={`Edit ${target.name}`}>Edit</Button>
+        )}
+        {target.deviceId != null ? null : confirming ? (
           <>
             <Button size="sm" onClick={() => remove.mutate()} disabled={remove.isPending} aria-label={`Confirm delete ${target.name}`}>Confirm delete</Button>
             <Button variant="outline" size="sm" onClick={() => setConfirming(false)}>Keep</Button>

@@ -6,6 +6,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Lan\oui.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Wanetra.Api.Tests" />
   </ItemGroup>
 
