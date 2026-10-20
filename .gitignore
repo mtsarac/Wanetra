@@ -38,7 +38,19 @@ coverage/
 logs/
 
 # OS
-a.DS_Store
+.DS_Store
 Thumbs.db
+
+# AI agent files
+CLAUDE.md
+AGENTS.md
+GEMINI.md
 .codegraph
 .omo
+.claude/
+.cursor/
+.cursorrules
+.windsurfrules
+.codex/
+.omp/
+.github/copilot-instructions.md
