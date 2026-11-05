@@ -10,7 +10,7 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 - Updated dependencies: .NET packages to 10.0.14, `oven/bun` to 1.4.4, react-query, react-router, Vite, ESLint and typescript-eslint, and the setup-dotnet, docker/login-action and CodeQL actions.
 
-## [0.4.2] - 2026-10-29
+## [0.4.2] - 2026-10-24
 
 ### Changed
 
