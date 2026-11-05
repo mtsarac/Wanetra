@@ -4,6 +4,18 @@ All notable changes to Wanetra will be documented here. The format follows [Keep
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-05
+
+### Changed
+
+- Updated dependencies: .NET packages to 10.0.14, `oven/bun` to 1.4.4, react-query, react-router, Vite, ESLint and typescript-eslint, and the setup-dotnet, docker/login-action and CodeQL actions.
+
+## [0.4.2] - 2026-10-24
+
+### Changed
+
+- Updated frontend dependencies and refreshed the Docker base image digests.
+
 ## [0.4.1] - 2026-10-19
 
 ### Fixed
@@ -169,7 +181,9 @@ Includes everything since the initial repository bootstrap; earlier pre-release 
 - Dependency review now blocks high-severity dependency changes, CodeQL uploads results, and Dependabot tracks the Bun lockfile.
 - GitHub Releases are marked Latest when their tag is the highest SemVer release on `main`; backports to older lines are not.
 
-[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/mtsarac/Wanetra/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/mtsarac/Wanetra/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/mtsarac/Wanetra/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/mtsarac/Wanetra/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mtsarac/Wanetra/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/mtsarac/Wanetra/compare/v0.3.0...v0.3.1
