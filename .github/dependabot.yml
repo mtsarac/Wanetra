@@ -11,6 +11,10 @@ updates:
     groups:
       nuget-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      # Project stays on .NET 10; Microsoft.Extensions.* 11.x targets .NET 11.
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: bun
     directory: /frontend
     commit-message:
@@ -48,3 +52,7 @@ updates:
     groups:
       docker-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      # Project stays on .NET 10; do not bump to .NET 11 images.
+      - dependency-name: "mcr.microsoft.com/dotnet/*"
+        update-types: ["version-update:semver-major"]
